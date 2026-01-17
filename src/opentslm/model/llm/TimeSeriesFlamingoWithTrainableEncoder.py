@@ -34,8 +34,8 @@ class TimeSeriesFlamingoWithTrainableEncoder(Flamingo):
             vision_x = rearrange(vision_x, "b T F c -> (b T F) c")
             
             # Process through encoder - will return [batch, patches, features]
-                
-            vision_x = self.vision_encoder(vision_x)  # Shape: [(b*T*F), patches, features]
+            # Access .visual since vision_encoder is a SimpleNamespace wrapper
+            vision_x = self.vision_encoder.visual(vision_x)  # Shape: [(b*T*F), patches, features]
                 
             # Reshape to expected format for perceiver
             # The transformer output already has the "tokens" dimension we need (patches)
@@ -51,8 +51,8 @@ class TimeSeriesFlamingoWithTrainableEncoder(Flamingo):
             assert F == 1, "Only single frame supported"
 
             vision_x = rearrange(vision_x, "b T F c h w -> (b T F) c h w")
-            
-            vision_x = self.vision_encoder(vision_x)[1]
+            # Access .visual since vision_encoder is a SimpleNamespace wrapper
+            vision_x = self.vision_encoder.visual(vision_x)[1]
             vision_x = rearrange(vision_x, "(b T F) v d -> b T F v d", b=b, T=T, F=F)
             vision_x = self.perceiver(vision_x)
 

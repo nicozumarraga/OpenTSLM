@@ -1,0 +1,115 @@
+{
+  "generated": "The ECG recording of an 82-year-old male patient with a pacemaker shows baseline drift, static noise, and electrode artifacts, which can affect the clarity of the tracing. Burst noise, characterized by sudden, irregular, and high-amplitude interference, is typically seen as sharp, erratic deflections that disrupt the normal ECG waveform. In this recording, the presence of burst noise is evident as these irregularities are present across multiple leads, which is consistent with the description of burst noise. The presence of these artifacts can complicate the interpretation, but the irregularities observed are indicative of burst noise rather than other types of noise. Answer: yes",
+  "model_prediction": "yes",
+  "ground_truth": "no",
+  "template_id": 27,
+  "ecg_id": [
+    16952
+  ],
+  "accuracy": false,
+  "f1_score": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "prediction_normalized": "yes",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 1
+}
+{
+  "generated": "In analyzing the ECG, we must consider the presence of a pacemaker, which can influence the rhythm and intervals observed. The baseline drift, static noise, burst noise, and electrode artifacts present in the recording can complicate the interpretation, but the focus remains on the P wave duration. The P wave duration is typically measured from the beginning of the P wave to its end, and the normal range is generally considered to be between 0.08 to 0.10 seconds. In this ECG, despite the noise and artifacts, the P wave duration appears consistent and falls within the expected normal range. The presence of extra beats may also affect the rhythm, but the P wave morphology and duration remain unaffected by these factors. Therefore, based on the observed cardiac patterns and the clinical context, the P wave duration does not exceed the normal range. Answer: none",
+  "model_prediction": "none",
+  "ground_truth": "above the normal range",
+  "template_id": 40,
+  "ecg_id": [
+    8449
+  ],
+  "accuracy": false,
+  "f1_score": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "prediction_normalized": "none",
+  "ground_truth_normalized": "above the normal range",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "above the normal range",
+    "below the normal range",
+    "none",
+    "within the normal range"
+  ],
+  "line_number": 2
+}
+{
+  "generated": "The ECG recording of this 25-year-old female patient shows a regular rhythm with consistent P waves preceding each QRS complex, indicating normal atrial activity and atrioventricular conduction. The QRS complexes are narrow, suggesting normal ventricular depolarization. The presence of a pacemaker is noted, but there are no signs of pacemaker malfunction or failure to capture. The baseline drift, static noise, and electrode artifacts do not obscure the fundamental rhythm analysis. Importantly, there are no significant ST segment elevations or depressions, nor are there pathological Q waves that would suggest a myocardial infarction. The extra beats detected could be due to premature atrial or ventricular contractions, but they do not indicate a conduction disturbance. Overall, the ECG does not show signs of conduction disturbance or myocardial infarction. Answer: none",
+  "model_prediction": "none",
+  "ground_truth": "none",
+  "template_id": 3,
+  "ecg_id": [
+    9164
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "none",
+  "ground_truth_normalized": "none",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "conduction disturbance",
+    "hypertrophy",
+    "myocardial infarction",
+    "none",
+    "st/t change"
+  ],
+  "line_number": 3
+}
+{
+  "generated": "The ECG recording shows a regular rhythm with consistent P waves preceding each QRS complex, indicating sinus rhythm. The heart rate appears to be within normal limits, and the QRS complexes are narrow, suggesting normal ventricular conduction. The PR interval is within normal range, and there are no signs of atrioventricular block. The QT interval does not appear prolonged, and there are no significant ST segment deviations or T wave inversions that would suggest ischemia or infarction. The presence of a pacemaker is noted, but there are no pacing spikes visible, which may be due to the patient's intrinsic rhythm being adequate. Despite the presence of baseline drift, static noise, burst noise, and electrode artifacts, these do not obscure the overall interpretation of the ECG. The extra beats detected could be premature contractions, but they do not appear to be frequent or organized enough to suggest a pathological arrhythmia. Overall, the ECG does not show any significant abnormalities that would indicate cardiac pathology. Answer: no",
+  "model_prediction": "no",
+  "ground_truth": "no",
+  "template_id": 12,
+  "ecg_id": [
+    13939
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "no",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 4
+}
+{
+  "generated": "The ECG shows a regular rhythm with paced ventricular activity, as evidenced by the presence of pacemaker spikes preceding each QRS complex. The QRS complexes are wide, consistent with ventricular pacing. There is baseline drift and noise, but the overall morphology suggests effective ventricular capture by the pacemaker. The presence of extra beats, likely premature ventricular contractions, is noted, which can be seen as irregularities in the pacing pattern. The atrial activity is not clearly discernible due to the noise and artifacts, but the ventricular pacing spikes are consistent. Given the presence of a pacemaker and the observed pacing rhythm, the ECG does show diagnostic features related to the pacing and potential premature beats. Answer: yes.",
+  "model_prediction": "yes",
+  "ground_truth": "no",
+  "template_id": 13,
+  "ecg_id": [
+    7717
+  ],
+  "accuracy": false,
+  "f1_score": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "prediction_normalized": "yes",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 5
+}

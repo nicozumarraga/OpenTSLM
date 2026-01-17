@@ -1,0 +1,263 @@
+{
+  "generated": "The ECG recording of an 82-year-old male patient with a pacemaker shows baseline drift, static noise, and electrode artifacts, which can affect the clarity of the tracing. Burst noise, characterized by sudden, irregular, and high-amplitude interference, is typically seen as sharp, erratic deflections that disrupt the normal ECG waveform. In this recording, the presence of burst noise is evident as these irregularities are present across multiple leads, which is consistent with the description of burst noise. The presence of these artifacts can complicate the interpretation, but the irregularities observed are indicative of burst noise rather than other types of noise. Answer: yes",
+  "model_prediction": "yes",
+  "ground_truth": "no",
+  "template_id": 27,
+  "ecg_id": [
+    16952
+  ],
+  "accuracy": false,
+  "f1_score": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "prediction_normalized": "yes",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 1
+}
+{
+  "generated": "In analyzing the ECG, we must consider the presence of a pacemaker, which can influence the rhythm and intervals observed. The baseline drift, static noise, burst noise, and electrode artifacts present in the recording can complicate the interpretation, but the focus remains on the P wave duration. The P wave duration is typically measured from the beginning of the P wave to its end, and the normal range is generally considered to be between 0.08 to 0.10 seconds. In this ECG, despite the noise and artifacts, the P wave duration appears consistent and falls within the expected normal range. The presence of extra beats may also affect the rhythm, but the P wave morphology and duration remain unaffected by these factors. Therefore, based on the observed cardiac patterns and the clinical context, the P wave duration does not exceed the normal range. Answer: none",
+  "model_prediction": "none",
+  "ground_truth": "above the normal range",
+  "template_id": 40,
+  "ecg_id": [
+    8449
+  ],
+  "accuracy": false,
+  "f1_score": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "prediction_normalized": "none",
+  "ground_truth_normalized": "above the normal range",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "above the normal range",
+    "below the normal range",
+    "none",
+    "within the normal range"
+  ],
+  "line_number": 2
+}
+{
+  "generated": "The ECG recording of this 25-year-old female patient shows a regular rhythm with consistent P waves preceding each QRS complex, indicating normal atrial activity and atrioventricular conduction. The QRS complexes are narrow, suggesting normal ventricular depolarization. The presence of a pacemaker is noted, but there are no signs of pacemaker malfunction or failure to capture. The baseline drift, static noise, and electrode artifacts do not obscure the fundamental rhythm analysis. Importantly, there are no significant ST segment elevations or depressions, nor are there pathological Q waves that would suggest a myocardial infarction. The extra beats detected could be due to premature atrial or ventricular contractions, but they do not indicate a conduction disturbance. Overall, the ECG does not show signs of conduction disturbance or myocardial infarction. Answer: none",
+  "model_prediction": "none",
+  "ground_truth": "none",
+  "template_id": 3,
+  "ecg_id": [
+    9164
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "none",
+  "ground_truth_normalized": "none",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "conduction disturbance",
+    "hypertrophy",
+    "myocardial infarction",
+    "none",
+    "st/t change"
+  ],
+  "line_number": 3
+}
+{
+  "generated": "The ECG recording shows a regular rhythm with consistent P waves preceding each QRS complex, indicating sinus rhythm. The heart rate appears to be within normal limits, and the QRS complexes are narrow, suggesting normal ventricular conduction. The PR interval is within normal range, and there are no signs of atrioventricular block. The QT interval does not appear prolonged, and there are no significant ST segment deviations or T wave inversions that would suggest ischemia or infarction. The presence of a pacemaker is noted, but there are no pacing spikes visible, which may be due to the patient's intrinsic rhythm being adequate. Despite the presence of baseline drift, static noise, burst noise, and electrode artifacts, these do not obscure the overall interpretation of the ECG. The extra beats detected could be premature contractions, but they do not appear to be frequent or organized enough to suggest a pathological arrhythmia. Overall, the ECG does not show any significant abnormalities that would indicate cardiac pathology. Answer: no",
+  "model_prediction": "no",
+  "ground_truth": "no",
+  "template_id": 12,
+  "ecg_id": [
+    13939
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "no",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 4
+}
+{
+  "generated": "The ECG shows a regular rhythm with paced ventricular activity, as evidenced by the presence of pacemaker spikes preceding each QRS complex. The QRS complexes are wide, consistent with ventricular pacing. There is baseline drift and noise, but the overall morphology suggests effective ventricular capture by the pacemaker. The presence of extra beats, likely premature ventricular contractions, is noted, which can be seen as irregularities in the pacing pattern. The atrial activity is not clearly discernible due to the noise and artifacts, but the ventricular pacing spikes are consistent. Given the presence of a pacemaker and the observed pacing rhythm, the ECG does show diagnostic features related to the pacing and potential premature beats. Answer: yes.",
+  "model_prediction": "yes",
+  "ground_truth": "no",
+  "template_id": 13,
+  "ecg_id": [
+    7717
+  ],
+  "accuracy": false,
+  "f1_score": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "prediction_normalized": "yes",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 5
+}
+{
+  "generated": "The ECG recording of the 72-year-old male patient shows a regular rhythm with consistent pacing spikes preceding each QRS complex, indicating the presence of a functioning pacemaker. The QRS complexes are narrow, suggesting proper ventricular capture by the pacemaker. There is no evidence of acute ischemic changes such as ST-segment elevation or depression, and the T waves appear normal without inversion or hyperacute changes. The baseline drift, static noise, burst noise, and electrode artifacts do not obscure the overall interpretation, as the pacing spikes and QRS complexes are clearly visible. The presence of extra beats detected during the recording does not appear to disrupt the overall pacing pattern, and there are no significant arrhythmias or conduction abnormalities such as bundle branch blocks. Given the clinical context and the ECG findings, there are no form-related symptoms present. Answer: no",
+  "model_prediction": "no",
+  "ground_truth": "no",
+  "template_id": 15,
+  "ecg_id": [
+    5612
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "no",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 6
+}
+{
+  "generated": "The ECG recording shows a regular rhythm with consistent R-R intervals, indicating a stable heart rate. The presence of a pacemaker is noted, which is evident from the pacing spikes preceding each QRS complex. These spikes suggest that the pacemaker is functioning appropriately, maintaining a regular rhythm. The QRS complexes appear uniform and appropriately paced, without any irregularities such as atrial fibrillation or flutter. Despite the presence of baseline drift, static noise, and electrode artifacts, the underlying rhythm remains regular and controlled. The extra beats detected during recording do not seem to disrupt the overall rhythm, as they are likely isolated premature beats that do not significantly alter the regular pacing pattern. Overall, the ECG does not show any significant rhythm-related abnormalities such as atrial fibrillation or flutter. Answer: no",
+  "model_prediction": "no",
+  "ground_truth": "no",
+  "template_id": 16,
+  "ecg_id": [
+    3296
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "no",
+  "ground_truth_normalized": "no",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 7
+}
+{
+  "generated": "The ECG shows a regular rhythm with a pacemaker present, which is evident from the pacing spikes preceding the QRS complexes. The QRS complexes are wide, consistent with ventricular pacing. There is no evidence of ST-segment elevation or depression, which are typical indicators of acute myocardial infarction. The T waves appear normal without inversion or hyperacute changes. The presence of baseline drift, static noise, and electrode artifacts does not obscure the overall interpretation. The extra beats detected may be due to premature ventricular contractions, which are not uncommon in paced rhythms. Given the absence of acute ischemic changes such as ST elevation or depression, and the presence of a pacemaker, the ECG does not suggest an early stage of myocardial infarction. Answer: none of myocardial infarction.",
+  "model_prediction": "none of myocardial infarction",
+  "ground_truth": "none of myocardial infarction",
+  "template_id": 25,
+  "ecg_id": [
+    17680
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "none of myocardial infarction",
+  "ground_truth_normalized": "none of myocardial infarction",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "early stage of myocardial infarction",
+    "old stage of myocardial infarction",
+    "middle stage of myocardial infarction",
+    "none of myocardial infarction",
+    "unknown stage of myocardial infarction"
+  ],
+  "line_number": 8
+}
+{
+  "generated": "The ECG recording for the 81-year-old male patient shows a regular rhythm with a pacemaker present, which is evident from the pacing spikes preceding each QRS complex. The QRS complexes appear wide, which is typical in paced rhythms, and there is no evidence of ST-segment elevation or depression in the anterolateral leads (I, aVL, V3-V6) that would suggest acute ischemia. The presence of baseline drift, static noise, and electrode artifacts complicates the interpretation, but the overall morphology does not indicate acute ischemic changes. The extra beats detected may be due to pacemaker activity or ectopic beats, but they do not alter the interpretation regarding ischemia. Given the clinical context and the ECG findings, there is no indication of ischemic changes in the anterolateral leads. Answer: none",
+  "model_prediction": "none",
+  "ground_truth": "left ventricular hypertrophy",
+  "template_id": 8,
+  "ecg_id": [
+    8369
+  ],
+  "accuracy": false,
+  "f1_score": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "prediction_normalized": "none",
+  "ground_truth_normalized": "left ventricular hypertrophy",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "complete left bundle branch block",
+    "complete right bundle branch block",
+    "digitalis effect",
+    "first degree av block",
+    "incomplete left bundle branch block",
+    "incomplete right bundle branch block",
+    "ischemic in anterior leads",
+    "ischemic in anterolateral leads",
+    "ischemic in anteroseptal leads",
+    "ischemic in inferior leads",
+    "ischemic in inferolateral leads",
+    "ischemic in lateral leads",
+    "left anterior fascicular block",
+    "left atrial overload/enlargement",
+    "left posterior fascicular block",
+    "left ventricular hypertrophy",
+    "long qt-interval",
+    "myocardial infarction in anterior leads",
+    "myocardial infarction in anterolateral leads",
+    "myocardial infarction in anteroseptal leads",
+    "myocardial infarction in inferior leads",
+    "myocardial infarction in inferolateral leads",
+    "myocardial infarction in inferoposterior leads",
+    "myocardial infarction in inferoposterolateral leads",
+    "myocardial infarction in lateral leads",
+    "myocardial infarction in posterior leads",
+    "non-diagnostic t abnormalities",
+    "non-specific intraventricular conduction disturbance (block)",
+    "non-specific ischemic",
+    "non-specific st changes",
+    "none",
+    "right atrial overload/enlargement",
+    "subendocardial injury in anterolateral leads",
+    "subendocardial injury in anteroseptal leads",
+    "subendocardial injury in inferior leads",
+    "subendocardial injury in inferolateral leads",
+    "subendocardial injury in lateral leads"
+  ],
+  "line_number": 9
+}
+{
+  "generated": "The ECG recording for the 82-year-old male patient shows baseline drift, static noise, burst noise, and electrode artifacts, which are indicative of various types of noise affecting the signal quality. Additionally, the presence of extra beats and a pacemaker can contribute to the complexity of the recording. These factors suggest that the ECG is affected by noise, which can impact the interpretation of the cardiac patterns. Answer: yes",
+  "model_prediction": "yes",
+  "ground_truth": "yes",
+  "template_id": 29,
+  "ecg_id": [
+    14342
+  ],
+  "accuracy": true,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "prediction_normalized": "yes",
+  "ground_truth_normalized": "yes",
+  "prediction_supported": true,
+  "ground_truth_supported": true,
+  "possible_answers": [
+    "no",
+    "yes"
+  ],
+  "line_number": 10
+}

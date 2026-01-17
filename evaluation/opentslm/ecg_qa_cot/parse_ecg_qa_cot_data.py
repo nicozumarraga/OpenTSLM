@@ -418,12 +418,14 @@ def extract_answer(text):
 
 
 if __name__ == "__main__":
-    current_dir = Path(__file__).parent
-    input_file = (
-        current_dir / "evaluation_results_openai-gpt-4o_ecgqacotqadataset.jsonl"
-    )
-    clean_output = (
-        current_dir / "evaluation_results_openai-gpt-4o_ecgqacotqadataset.clean.jsonl"
-    )
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Parse ECG-QA CoT predictions and calculate metrics")
+    parser.add_argument("--input", type=str, required=True, help="Input JSONL file with predictions")
+    parser.add_argument("--output", type=str, default=None, help="Output JSONL file (default: <input>.clean.jsonl)")
+    args = parser.parse_args()
+
+    input_file = Path(args.input)
+    clean_output = Path(args.output) if args.output else input_file.parent / f"{input_file.stem}.clean.jsonl"
 
     parse_ecg_qa_cot_jsonl(input_file, clean_output)

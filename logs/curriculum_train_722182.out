@@ -1,0 +1,44 @@
+==========================================
+CURRICULUM LEARNING TRAINING
+==========================================
+Job ID: 722182
+Node: node872
+GPU: NVIDIA A100 80GB PCIe
+Started: Sat Jan 17 14:22:03 CET 2026
+==========================================
+
+Environment:
+Python 3.12.12
+PyTorch: 2.9.1+cu128, CUDA: True
+
+==========================================
+Starting curriculum training...
+Model: OpenTSLMFlamingo
+LLM: meta-llama/Llama-3.2-1B
+Stages: stage1_mcq -> stage2_captioning -> stage3_cot -> stage4_sleep_cot -> stage5_ecg_cot
+==========================================
+Flamingo Using device: cuda
+🎓 Starting Curriculum Learning with OpenTSLMFlamingo
+📊 All stages: stage1_mcq, stage2_captioning, stage3_cot, stage4_sleep_cot, stage5_ecg_cot
+🔄 Incomplete stages: stage1_mcq, stage2_captioning, stage3_cot, stage4_sleep_cot, stage5_ecg_cot
+💻 Device: cuda
+📦 Batch size: 4
+================================================================================
+
+🚀 Starting stage1_mcq Training with OpenTSLMFlamingo
+============================================================
+📊 Stage Configuration:
+   Epochs: 30
+   Base LR: 2.00e-04
+   Batch size per GPU: 4
+
+🆕 Starting with fresh model (first stage)
+
+📊 Learning rate for OpenTSLMFlamingo:
+   Base LR: 2.00e-04
+Formatting training samples...
+Formatting validation samples...
+Formatting test samples...
+📈 Total training steps: 288000
+🔥 Warmup steps: 8640
+🆕 Starting fresh training for stage1_mcq

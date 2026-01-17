@@ -1,0 +1,17 @@
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Traceback (most recent call last):
+  File "/zfsstore/user/s4350529/projects/OpenTSLM/curriculum_learning.py", line 1723, in <module>
+    main()
+  File "/zfsstore/user/s4350529/projects/OpenTSLM/curriculum_learning.py", line 1697, in main
+    trainer = CurriculumTrainer(
+              ^^^^^^^^^^^^^^^^^^
+  File "/zfsstore/user/s4350529/projects/OpenTSLM/curriculum_learning.py", line 147, in __init__
+    self.model = self._initialize_model()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zfsstore/user/s4350529/projects/OpenTSLM/curriculum_learning.py", line 166, in _initialize_model
+    model = OpenTSLMFlamingo(
+            ^^^^^^^^^^^^^^^^^
+  File "/zfsstore/user/s4350529/projects/OpenTSLM/src/opentslm/model/llm/OpenTSLMFlamingo.py", line 149, in __init__
+    model.vision_encoder.requires_grad_(True)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'types.SimpleNamespace' object has no attribute 'requires_grad_'

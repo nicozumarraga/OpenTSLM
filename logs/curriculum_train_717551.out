@@ -1,0 +1,35 @@
+==========================================
+CURRICULUM LEARNING TRAINING
+==========================================
+Job ID: 717551
+Node: node872
+GPU: NVIDIA A100 80GB PCIe
+Started: Sat Jan 17 07:24:58 CET 2026
+==========================================
+
+Environment:
+Python 3.12.12
+PyTorch: 2.9.1+cu128, CUDA: True
+
+==========================================
+Starting curriculum training...
+Model: OpenTSLMFlamingo
+LLM: meta-llama/Llama-3.2-1B
+Stages: stage1_mcq -> stage2_captioning -> stage3_cot -> stage4_sleep_cot -> stage5_ecg_cot
+==========================================
+Flamingo Using device: cuda
+
+==========================================
+Training failed or was interrupted
+You can resume by running the same command
+==========================================
+
+Checkpoints saved to:
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage1_mcq/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage2_captioning/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage3_cot/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage4_sleep_cot/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage5_ecg_cot/checkpoints/
+
+Finished: Sat Jan 17 07:25:21 CET 2026
+==========================================

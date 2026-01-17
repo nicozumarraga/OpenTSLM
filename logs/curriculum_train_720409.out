@@ -1,0 +1,110 @@
+==========================================
+CURRICULUM LEARNING TRAINING
+==========================================
+Job ID: 720409
+Node: node872
+GPU: NVIDIA A100 80GB PCIe
+Started: Sat Jan 17 14:18:21 CET 2026
+==========================================
+
+Environment:
+Python 3.12.12
+PyTorch: 2.9.1+cu128, CUDA: True
+
+==========================================
+Starting curriculum training...
+Model: OpenTSLMFlamingo
+LLM: meta-llama/Llama-3.2-1B
+Stages: stage1_mcq -> stage2_captioning -> stage3_cot -> stage4_sleep_cot -> stage5_ecg_cot
+==========================================
+Flamingo Using device: cuda
+🎓 Starting Curriculum Learning with OpenTSLMFlamingo
+📊 All stages: stage1_mcq, stage2_captioning, stage3_cot, stage4_sleep_cot, stage5_ecg_cot
+🔄 Incomplete stages: stage1_mcq, stage2_captioning, stage3_cot, stage4_sleep_cot, stage5_ecg_cot
+💻 Device: cuda
+📦 Batch size: 4
+================================================================================
+
+🚀 Starting stage1_mcq Training with OpenTSLMFlamingo
+============================================================
+📊 Stage Configuration:
+   Epochs: 30
+   Base LR: 2.00e-04
+   Batch size per GPU: 4
+
+🆕 Starting with fresh model (first stage)
+
+📊 Learning rate for OpenTSLMFlamingo:
+   Base LR: 2.00e-04
+Formatting training samples...
+Formatting validation samples...
+Formatting test samples...
+📈 Total training steps: 288000
+🔥 Warmup steps: 8640
+🆕 Starting fresh training for stage1_mcq
+[DEBUG] Batch 0 - batch size: 4
+[DEBUG] Sample key 'time_series' shape: torch.Size([1, 128])
+[DEBUG] Sample key 'time_series_text' list length: 1
+|===========================================================================|
+|                  PyTorch CUDA memory summary, device ID 0                 |
+|---------------------------------------------------------------------------|
+|            CUDA OOMs: 0            |        cudaMalloc retries: 0         |
+|===========================================================================|
+|        Metric         | Cur Usage  | Peak Usage | Tot Alloc  | Tot Freed  |
+|---------------------------------------------------------------------------|
+| Allocated memory      |   6917 MiB |   6917 MiB |  16477 MiB |   9560 MiB |
+|       from large pool |   6899 MiB |   6899 MiB |  16458 MiB |   9559 MiB |
+|       from small pool |     18 MiB |     18 MiB |     18 MiB |      0 MiB |
+|---------------------------------------------------------------------------|
+| Active memory         |   6917 MiB |   6917 MiB |  16477 MiB |   9560 MiB |
+|       from large pool |   6899 MiB |   6899 MiB |  16458 MiB |   9559 MiB |
+|       from small pool |     18 MiB |     18 MiB |     18 MiB |      0 MiB |
+|---------------------------------------------------------------------------|
+| Requested memory      |   6916 MiB |   6916 MiB |  16476 MiB |   9560 MiB |
+|       from large pool |   6898 MiB |   6898 MiB |  16457 MiB |   9559 MiB |
+|       from small pool |     18 MiB |     18 MiB |     18 MiB |      0 MiB |
+|---------------------------------------------------------------------------|
+| GPU reserved memory   |   6994 MiB |   6994 MiB |   6994 MiB |      0 B   |
+|       from large pool |   6974 MiB |   6974 MiB |   6974 MiB |      0 B   |
+|       from small pool |     20 MiB |     20 MiB |     20 MiB |      0 B   |
+|---------------------------------------------------------------------------|
+| Non-releasable memory |  78361 KiB |   4214 MiB |   9421 MiB |   9345 MiB |
+|       from large pool |  76648 KiB |   4213 MiB |   9405 MiB |   9330 MiB |
+|       from small pool |   1713 KiB |      1 MiB |     16 MiB |     14 MiB |
+|---------------------------------------------------------------------------|
+| Allocations           |     397    |     397    |     610    |     213    |
+|       from large pool |     178    |     178    |     326    |     148    |
+|       from small pool |     219    |     219    |     284    |      65    |
+|---------------------------------------------------------------------------|
+| Active allocs         |     397    |     397    |     610    |     213    |
+|       from large pool |     178    |     178    |     326    |     148    |
+|       from small pool |     219    |     219    |     284    |      65    |
+|---------------------------------------------------------------------------|
+| GPU reserved segments |      16    |      16    |      16    |       0    |
+|       from large pool |       6    |       6    |       6    |       0    |
+|       from small pool |      10    |      10    |      10    |       0    |
+|---------------------------------------------------------------------------|
+| Non-releasable allocs |       9    |      11    |     190    |     181    |
+|       from large pool |       7    |       9    |     137    |     130    |
+|       from small pool |       2    |       4    |      53    |      51    |
+|---------------------------------------------------------------------------|
+| Oversize allocations  |       0    |       0    |       0    |       0    |
+|---------------------------------------------------------------------------|
+| Oversize GPU segments |       0    |       0    |       0    |       0    |
+|===========================================================================|
+
+
+==========================================
+Training failed or was interrupted
+You can resume by running the same command
+==========================================
+
+Checkpoints saved to:
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage1_mcq/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage2_captioning/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage3_cot/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage4_sleep_cot/checkpoints/
+  results/Llama_3_2_1B/OpenTSLMFlamingo/stage5_ecg_cot/checkpoints/
+
+Finished: Sat Jan 17 14:19:00 CET 2026
+==========================================
