@@ -20,3 +20,5 @@ upload_to_huggingface.py
 dist/
 
 *.license
+
+Capture-24-implementation.md
