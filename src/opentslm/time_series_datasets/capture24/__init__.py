@@ -29,6 +29,11 @@ from .capture24_classification import (
     load_classification_metadata,
     load_label_mapping,
 )
+from .capture24_qa_loader import (
+    get_label_list,
+    load_capture24_classification_splits,
+)
+from .Capture24AccQADataset import Capture24AccQADataset
 
 __all__ = [
     # Loader
@@ -54,4 +59,8 @@ __all__ = [
     "load_label_mapping",
     "CLASSIFICATION_DIR",
     "LABEL_SCHEMES",
+    # QA Dataset
+    "load_capture24_classification_splits",
+    "get_label_list",
+    "Capture24AccQADataset",
 ]

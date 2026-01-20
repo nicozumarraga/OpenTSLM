@@ -490,3 +490,360 @@ python -m opentslm.time_series_datasets.capture24.capture24_classification \
 ## QA Pairs
 
 (Will be implemented later - requires LLM-based question generation using annotations, similar to SensorLLM from Google.)
+
+---
+
+# Implementation Plan: Step 3 - OpenTSLM QADataset Integration
+
+## Goal
+
+Create a QADataset subclass that makes Capture-24 classification data compatible with OpenTSLM Flamingo training pipeline. This enables finetuning and evaluation of the OpenTSLM model on human activity recognition from wrist-worn accelerometer data.
+
+## Reference Files (Use as Templates)
+
+The HAR (Human Activity Recognition) datasets are the most similar to Capture-24 and should be used as implementation templates:
+
+| File | Purpose | Key Patterns |
+|------|---------|--------------|
+| `src/opentslm/time_series_datasets/QADataset.py` | **Base class** - defines the interface all datasets must implement | Abstract methods, `PromptWithAnswer` format, caching |
+| `src/opentslm/time_series_datasets/har_cot/HARAccQADataset.py` | **Best template** - accelerometer activity classification | Prompt structure, time series labels, `get_labels()` |
+| `src/opentslm/time_series_datasets/har_cot/har_cot_loader.py` | **Loader pattern** - loads CSV → HuggingFace Dataset | `load_har_cot_splits()` returns `(train, val, test)` |
+| `src/opentslm/time_series_datasets/pamap2/PAMAP2AccQADataset.py` | **Alternative template** - similar HAR task with downsampling | Shows per-axis TextTimeSeriesPrompt creation |
+
+## Key Architecture Understanding
+
+### QADataset Base Class
+
+The `QADataset` base class (`src/opentslm/time_series_datasets/QADataset.py`) requires subclasses to implement:
+
+```python
+class QADataset(Dataset, ABC):
+    @abstractmethod
+    def _load_splits(self) -> Tuple[Dataset, Dataset, Dataset]:
+        """Return (train, val, test) as HuggingFace Dataset objects."""
+        pass
+
+    @abstractmethod
+    def _get_answer(self, row) -> str:
+        """Return the label/answer string."""
+        pass
+
+    @abstractmethod
+    def _get_pre_prompt(self, row) -> str:
+        """Return instruction text BEFORE the time series."""
+        pass
+
+    @abstractmethod
+    def _get_post_prompt(self, row) -> str:
+        """Return instruction text AFTER the time series (include possible labels)."""
+        pass
+
+    @abstractmethod
+    def _get_text_time_series_prompt_list(self, row) -> List[TextTimeSeriesPrompt]:
+        """Return list of TextTimeSeriesPrompt objects, one per axis."""
+        pass
+```
+
+### Data Flow
+
+```
+Classification Parquet (Phase 2B)
+         ↓
+capture24_qa_loader.py (load → HuggingFace Dataset)
+         ↓
+Capture24AccQADataset (format for model)
+         ↓
+PromptWithAnswer → Training Loop
+```
+
+## Files to Create
+
+```
+src/opentslm/time_series_datasets/capture24/
+├── capture24_qa_loader.py       # NEW: Load classification parquet → HuggingFace Dataset
+├── Capture24AccQADataset.py     # NEW: QADataset subclass for activity classification
+├── __init__.py                  # UPDATE: Add new exports
+└── test/
+    └── test_capture24_qa.py     # NEW: Verification script
+```
+
+## Implementation Details
+
+### 1. `capture24_qa_loader.py`
+
+Loads Phase 2B classification parquet files and returns HuggingFace Dataset objects.
+
+**Functions:**
+
+```python
+def load_capture24_classification_splits(
+    window_size_s: int = 10,
+    effective_hz: int = 100,
+    label_scheme: str = "Walmsley2020"
+) -> Tuple[Dataset, Dataset, Dataset]:
+    """
+    Load Capture-24 classification data as HuggingFace Dataset objects.
+
+    Returns:
+        Tuple of (train, val, test) Dataset objects with schema:
+        - x_axis: list[float]
+        - y_axis: list[float]
+        - z_axis: list[float]
+        - label: str
+    """
+    pass
+
+def get_label_list(label_scheme: str) -> List[str]:
+    """Return alphabetically sorted list of labels for a scheme."""
+    pass
+
+def print_dataset_info(dataset: Dataset, name: str):
+    """Print dataset statistics (size, label distribution)."""
+    pass
+```
+
+**Key Implementation Notes:**
+- Load from `data/capture24/classification/{window_size_s}s_{effective_hz}hz/{label_scheme}/`
+- Rename columns: `x` → `x_axis`, `y` → `y_axis`, `z` → `z_axis` (to match HAR format)
+- Handle missing splits gracefully (val may not exist in test runs)
+- Convert Polars DataFrame → Pandas → HuggingFace Dataset
+
+### 2. `Capture24AccQADataset.py`
+
+QADataset subclass for activity classification (modeled after `HARAccQADataset.py`).
+
+**Class Structure:**
+
+```python
+# Time series labels (one per axis)
+TIME_SERIES_LABELS = [
+    "The following is the accelerometer data on the x-axis",
+    "The following is the accelerometer data on the y-axis",
+    "The following is the accelerometer data on the z-axis",
+]
+
+class Capture24AccQADataset(QADataset):
+    def __init__(
+        self,
+        split: Literal["train", "test", "validation"],
+        EOS_TOKEN: str,
+        window_size_s: int = 10,
+        effective_hz: int = 100,
+        label_scheme: str = "Walmsley2020",
+        format_sample_str: bool = False,
+        time_series_format_function=None,
+    ):
+        # Store config before calling super().__init__
+        self.window_size_s = window_size_s
+        self.effective_hz = effective_hz
+        self.label_scheme = label_scheme
+        super().__init__(split, EOS_TOKEN, format_sample_str, time_series_format_function)
+
+    def _load_splits(self) -> Tuple[Dataset, Dataset, Dataset]:
+        return load_capture24_classification_splits(
+            self.window_size_s, self.effective_hz, self.label_scheme
+        )
+
+    def _get_answer(self, row) -> str:
+        return row["label"]
+
+    def _get_pre_prompt(self, _row) -> str:
+        return "You are given accelerometer data in all three dimensions from a wrist-worn sensor. Your task is to predict the person's activity."
+
+    def _get_post_prompt(self, _row) -> str:
+        activities = ", ".join(self.get_labels())
+        return f"""
+Instructions:
+- Analyze the accelerometer patterns to determine the activity.
+- Consider movement intensity, periodicity, and axis relationships.
+The following activities are possible: {activities}
+- You MUST end your response with "Answer: <class label>"
+"""
+
+    def _get_text_time_series_prompt_list(self, row) -> List[TextTimeSeriesPrompt]:
+        series = torch.tensor(
+            [row["x_axis"], row["y_axis"], row["z_axis"]],
+            dtype=torch.float32,
+        )
+        return [
+            TextTimeSeriesPrompt(label, ts.tolist())
+            for label, ts in zip(TIME_SERIES_LABELS, series)
+        ]
+
+    @staticmethod
+    def get_labels() -> List[str]:
+        # Return labels for the configured scheme
+        # For Walmsley2020: ["light", "moderate-vigorous", "sedentary", "sleep"]
+        pass
+```
+
+**Key Implementation Notes:**
+- Store `window_size_s`, `effective_hz`, `label_scheme` as instance attributes BEFORE calling `super().__init__()` (required because `_load_splits` is called in parent constructor)
+- Use class-level caching pattern from base class (datasets loaded once per class)
+- Match prompt style from `HARAccQADataset.py`
+- `get_labels()` should return the labels for the configured scheme
+
+### 3. Update `__init__.py`
+
+Add exports:
+
+```python
+from .capture24_qa_loader import (
+    load_capture24_classification_splits,
+    get_label_list,
+)
+from .Capture24AccQADataset import Capture24AccQADataset
+
+__all__ = [
+    # ... existing exports ...
+    # QA Dataset
+    "load_capture24_classification_splits",
+    "get_label_list",
+    "Capture24AccQADataset",
+]
+```
+
+## Expected Data Schema
+
+**Input (from Phase 2B parquet):**
+```python
+{
+    "window_id": "P001_1476676380000",
+    "pid": "P001",
+    "x": [0.38, 0.39, ...],        # list[float32]
+    "y": [0.48, 0.49, ...],        # list[float32]
+    "z": [-0.79, -0.78, ...],      # list[float32]
+    "label": "sleep",
+    "label_id": 3,
+    "confidence": 1.0,
+}
+```
+
+**Output (HuggingFace Dataset for QADataset):**
+```python
+{
+    "x_axis": [0.38, 0.39, ...],   # renamed from x
+    "y_axis": [0.48, 0.49, ...],   # renamed from y
+    "z_axis": [-0.79, -0.78, ...], # renamed from z
+    "label": "sleep",
+}
+```
+
+**Final format (after QADataset processing):**
+```python
+{
+    "pre_prompt": "You are given accelerometer data...",
+    "time_series": [[x_values], [y_values], [z_values]],
+    "post_prompt": "Instructions: ... Answer: <class label>",
+    "answer": "sleep",
+}
+```
+
+## Verification
+
+### Test Script (`test/test_capture24_qa.py`)
+
+```python
+from opentslm.time_series_datasets.capture24 import (
+    load_capture24_classification_splits,
+    Capture24AccQADataset,
+)
+from torch.utils.data import DataLoader
+from opentslm.time_series_datasets.util import extend_time_series_to_match_patch_size_and_aggregate
+
+def main():
+    # 1. Test loader
+    train_ds, val_ds, test_ds = load_capture24_classification_splits(
+        window_size_s=10, effective_hz=100, label_scheme="Walmsley2020"
+    )
+    print(f"Loaded: train={len(train_ds)}, val={len(val_ds) if val_ds else 0}, test={len(test_ds)}")
+
+    # 2. Test QADataset
+    dataset = Capture24AccQADataset(
+        split="train",
+        EOS_TOKEN="",
+        window_size_s=10,
+        effective_hz=100,
+        label_scheme="Walmsley2020"
+    )
+    print(f"QADataset size: {len(dataset)}")
+
+    # 3. Test sample format
+    sample = dataset[0]
+    print(f"Sample keys: {sample.keys()}")
+    print(f"Answer: {sample['answer']}")
+
+    # 4. Test DataLoader integration
+    dataloader = DataLoader(
+        dataset,
+        batch_size=4,
+        shuffle=True,
+        collate_fn=lambda batch: extend_time_series_to_match_patch_size_and_aggregate(
+            batch, patch_size=4
+        ),
+    )
+
+    for batch in dataloader:
+        print(f"Batch keys: {batch[0].keys()}")
+        print(f"Time series shape: {len(batch[0]['time_series'])}")
+        break
+
+    print("✓ All verification checks passed!")
+
+if __name__ == "__main__":
+    main()
+```
+
+### CLI Verification
+
+```bash
+# Run test script
+python -m opentslm.time_series_datasets.capture24.test.test_capture24_qa
+
+# Run QADataset directly (if __main__ implemented)
+python -m opentslm.time_series_datasets.capture24.Capture24AccQADataset
+```
+
+## Label Scheme Mapping
+
+For `get_labels()` method:
+
+| Scheme | Labels (alphabetically sorted) |
+|--------|-------------------------------|
+| **Walmsley2020** | `["light", "moderate-vigorous", "sedentary", "sleep"]` |
+| **Doherty2018** | `["moderate", "sedentary", "sleep", "tasks-light", "walking"]` |
+| **Willetts2018** | `["bicycling", "mixed", "sit-stand", "sleep", "vehicle", "walking"]` |
+
+## Integration with Training
+
+After implementation, the dataset can be used in training:
+
+```python
+from opentslm.time_series_datasets.capture24 import Capture24AccQADataset
+
+# Create datasets
+train_dataset = Capture24AccQADataset(
+    split="train",
+    EOS_TOKEN=tokenizer.eos_token,
+    window_size_s=10,
+    effective_hz=100,
+    label_scheme="Walmsley2020"
+)
+val_dataset = Capture24AccQADataset(split="validation", ...)
+test_dataset = Capture24AccQADataset(split="test", ...)
+
+# Use with trainer
+trainer = Trainer(
+    model=model,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,
+    ...
+)
+```
+
+## Dependencies
+
+No new dependencies required - uses existing:
+- `datasets` (HuggingFace)
+- `torch`
+- `polars`

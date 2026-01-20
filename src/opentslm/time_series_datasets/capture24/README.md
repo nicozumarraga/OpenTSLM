@@ -199,6 +199,18 @@ test_windows = load_windows(window_size_s=10, effective_hz=25, split="test")
 
 # Window schema: window_id, pid, start_ms, end_ms, x, y, z, annotations
 ```
+To **match HAR CoT's 128 samples per window**, here are the Capture-24 configurations:
+  ┌─────────────┬──────────────┬─────────┬─────────────────────────────────────────────┐
+  │ Window Size │ Effective Hz │ Samples │                    Notes                    │
+  ├─────────────┼──────────────┼─────────┼─────────────────────────────────────────────┤
+  │ 2.56s       │ 50Hz         │ 128     │ Exact HAR match (50Hz divides 100Hz evenly) │
+  └─────────────┴──────────────┴─────────┴─────────────────────────────────────────────┘
+
+  This gives you:
+  - Same number of samples (128)
+  - Same sampling rate (50Hz)
+  - Same temporal duration (2.56 seconds)
+  - Clean downsampling from 100Hz (take every 2nd sample)
 
 ### Loading Classification Datasets
 
@@ -308,3 +320,129 @@ sleep, sedentary, tasks-light, moderate, walking
 
 **Walmsley2020 (5 labels):**
 sleep, sedentary, light, moderate-vigorous
+
+## OpenTSLM Training Integration
+
+### 6. Create QADataset for Training
+
+After creating the classification dataset, use `Capture24AccQADataset` to train OpenTSLM models:
+
+```python
+from opentslm.time_series_datasets.capture24 import Capture24AccQADataset
+
+# Create dataset for training (uses default config: 10s windows, 100Hz, Walmsley2020)
+train_dataset = Capture24AccQADataset(
+    split="train",
+    EOS_TOKEN=tokenizer.eos_token,
+    window_size_s=10,
+    effective_hz=100,
+    label_scheme="Walmsley2020"
+)
+
+val_dataset = Capture24AccQADataset(split="validation", EOS_TOKEN=tokenizer.eos_token)
+test_dataset = Capture24AccQADataset(split="test", EOS_TOKEN=tokenizer.eos_token)
+
+print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
+print(f"Labels: {train_dataset.get_labels()}")
+```
+
+### Using with DataLoader
+
+```python
+from torch.utils.data import DataLoader
+from opentslm.time_series_datasets.util import extend_time_series_to_match_patch_size_and_aggregate
+
+dataloader = DataLoader(
+    train_dataset,
+    batch_size=4,
+    shuffle=True,
+    collate_fn=lambda batch: extend_time_series_to_match_patch_size_and_aggregate(
+        batch, patch_size=4
+    ),
+)
+
+for batch in dataloader:
+    # batch is a list of dicts with keys:
+    # - pre_prompt, post_prompt, time_series, time_series_text, answer
+    # - label, x_axis, y_axis, z_axis (raw data preserved)
+    print(batch[0]["answer"])  # e.g., "sleep"
+    break
+```
+
+### Integration with CurriculumTrainer
+
+The `Capture24AccQADataset` follows the same interface as `HARCoTQADataset`, so it's compatible with the existing `CurriculumTrainer`. To add a Capture24 training stage:
+
+```python
+# In curriculum_learning.py, add a new stage method:
+def stage_capture24(self, batch_size: int = None, eval_only: bool = False):
+    """Stage: Capture-24 Activity Classification."""
+    from opentslm.time_series_datasets.capture24 import Capture24AccQADataset
+
+    return self._train_stage(
+        stage_name="stage_capture24",
+        dataset_class=Capture24AccQADataset,
+        num_epochs=30,
+        lr_encoder=2e-4,
+        lr_projector=1e-4,
+        lr_base=2e-4,
+        metric_func=lambda preds, golds: {
+            "accuracy": self._calculate_accuracy(preds, golds)
+        },
+        batch_size=batch_size,
+        eval_only=eval_only,
+    )
+```
+
+### Custom Configuration
+
+For custom window sizes or label schemes, create a wrapper class:
+
+```python
+from functools import partial
+from opentslm.time_series_datasets.capture24 import Capture24AccQADataset
+
+# Create a partial class with custom config
+Capture24Custom = partial(
+    Capture24AccQADataset,
+    window_size_s=2,        # 2.56s to match HAR
+    effective_hz=50,        # 50Hz for 128 samples
+    label_scheme="Doherty2018"
+)
+
+# Use in training
+train_dataset = Capture24Custom(split="train", EOS_TOKEN=tokenizer.eos_token)
+```
+
+### Sample Output Format
+
+Each sample from `Capture24AccQADataset` contains:
+
+```python
+sample = {
+    # Prompt components (for model input)
+    "pre_prompt": "You are given accelerometer data in all three dimensions from a wrist-worn sensor...",
+    "time_series": [[x_values], [y_values], [z_values]],  # 3 axes
+    "time_series_text": ["The following is the accelerometer data on the x-axis", ...],
+    "post_prompt": "Instructions: ... The following activities are possible: light, moderate-vigorous, sedentary, sleep ...",
+    "answer": "sleep",
+
+    # Raw data (preserved for analysis)
+    "label": "sleep",
+    "x_axis": [0.38, 0.39, ...],
+    "y_axis": [0.48, 0.49, ...],
+    "z_axis": [-0.79, -0.78, ...],
+}
+```
+
+### Caching Note
+
+The `QADataset` base class uses class-level caching. Once data is loaded for a configuration, it's cached for subsequent instances. If you need different configurations in the same session, restart Python or use separate processes.
+
+### Verification
+
+Run the test script to verify the integration:
+
+```bash
+python -m opentslm.time_series_datasets.capture24.test.test_capture24_qa
+```
