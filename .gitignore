@@ -20,3 +20,5 @@ upload_to_huggingface.py
 dist/
 
 *.license
+
+*.log

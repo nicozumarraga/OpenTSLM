@@ -42,6 +42,9 @@ python -m opentslm.time_series_datasets.capture24.capture24_loader --downsample-
 
 # Test with a few participants first
 python -m opentslm.time_series_datasets.capture24.capture24_loader --max-participants 3
+
+# Submit as SLURM job (recommended if working on a computing cluster -- adjust partition to your needs)
+sbatch src/opentslm/time_series_datasets/capture24/extract_data.sbatch
 ```
 
 This creates:
