@@ -5,11 +5,18 @@
 
 from .capture24_loader import (
     CAPTURE24_DATA_DIR,
-    SENSOR_DATA_DIR,
     ensure_capture24_data,
+    get_sensor_data_dir,
     load_label_mappings,
     load_participant_sensor_data,
     load_participants,
+)
+from .capture24_windows import (
+    WINDOWS_DIR,
+    extract_windows,
+    get_windows_path,
+    load_windows,
+    split_participants,
 )
 
 __all__ = [
@@ -17,6 +24,11 @@ __all__ = [
     "load_participants",
     "load_label_mappings",
     "load_participant_sensor_data",
+    "get_sensor_data_dir",
     "CAPTURE24_DATA_DIR",
-    "SENSOR_DATA_DIR",
+    "extract_windows",
+    "load_windows",
+    "get_windows_path",
+    "split_participants",
+    "WINDOWS_DIR",
 ]

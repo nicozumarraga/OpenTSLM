@@ -26,18 +26,39 @@ from opentslm.time_series_datasets.constants import RAW_DATA as RAW_DATA_PATH
 
 CAPTURE24_ZIP_PATH = os.path.join(RAW_DATA_PATH, "capture24.zip")
 CAPTURE24_DATA_DIR = os.path.join(RAW_DATA_PATH, "capture24")
-SENSOR_DATA_DIR = os.path.join(CAPTURE24_DATA_DIR, "sensor_data")
 
 
 # ---------------------------
 # Helper Functions
 # ---------------------------
 
-def is_data_ready() -> bool:
-    """Check if Parquet files exist."""
+def get_sensor_data_dir(downsample_hz: int = 100) -> str:
+    """
+    Get path for sensor data directory based on sampling frequency.
+
+    Args:
+        downsample_hz: Sampling frequency in Hz (default: 100)
+
+    Returns:
+        Path to sensor data directory
+    """
+    return os.path.join(CAPTURE24_DATA_DIR, f"sensor_data_{downsample_hz}hz")
+
+
+def is_data_ready(downsample_hz: int = 100) -> bool:
+    """
+    Check if Parquet files exist for the given sampling frequency.
+
+    Args:
+        downsample_hz: Sampling frequency in Hz (default: 100)
+
+    Returns:
+        True if all required files exist
+    """
     participants_path = os.path.join(CAPTURE24_DATA_DIR, "participants.parquet")
     label_mappings_path = os.path.join(CAPTURE24_DATA_DIR, "label_mappings.parquet")
-    sensor_data_exists = os.path.isdir(SENSOR_DATA_DIR) and len(list(Path(SENSOR_DATA_DIR).glob("pid=P*/data.parquet"))) > 0
+    sensor_data_dir = get_sensor_data_dir(downsample_hz)
+    sensor_data_exists = os.path.isdir(sensor_data_dir) and len(list(Path(sensor_data_dir).glob("pid=P*/data.parquet"))) > 0
 
     return (
         os.path.exists(participants_path)
@@ -70,7 +91,8 @@ def process_participant_file(
     print(f"Processing {pid}...")
 
     # Create participant directory
-    pid_dir = os.path.join(SENSOR_DATA_DIR, f"pid={pid}")
+    sensor_data_dir = get_sensor_data_dir(downsample_hz)
+    pid_dir = os.path.join(sensor_data_dir, f"pid={pid}")
     os.makedirs(pid_dir, exist_ok=True)
 
     output_path = os.path.join(pid_dir, "data.parquet")
@@ -142,7 +164,7 @@ def extract_and_convert_to_parquet(
         data/capture24/
         ├── participants.parquet
         ├── label_mappings.parquet
-        └── sensor_data/
+        └── sensor_data_{downsample_hz}hz/
             ├── pid=P001/data.parquet
             ├── pid=P002/data.parquet
             └── ...
@@ -154,7 +176,8 @@ def extract_and_convert_to_parquet(
         )
 
     os.makedirs(CAPTURE24_DATA_DIR, exist_ok=True)
-    os.makedirs(SENSOR_DATA_DIR, exist_ok=True)
+    sensor_data_dir = get_sensor_data_dir(downsample_hz)
+    os.makedirs(sensor_data_dir, exist_ok=True)
 
     print(f"Extracting and converting Capture-24 dataset from {CAPTURE24_ZIP_PATH}")
 
@@ -236,8 +259,8 @@ def ensure_capture24_data(
     If Parquet files already exist and overwrite is False, does nothing.
     Otherwise, extracts from ZIP and converts to Parquet format.
     """
-    if is_data_ready() and not overwrite:
-        print("Capture-24 Parquet data already exists")
+    if is_data_ready(downsample_hz) and not overwrite:
+        print(f"Capture-24 Parquet data already exists at {downsample_hz}Hz")
         return
 
     if overwrite:
@@ -267,7 +290,8 @@ def load_label_mappings() -> pl.DataFrame:
 def load_participant_sensor_data(
     pid: str,
     start_ms: Optional[int] = None,
-    end_ms: Optional[int] = None
+    end_ms: Optional[int] = None,
+    downsample_hz: int = 100
 ) -> pl.DataFrame:
     """
     Load sensor data for a single participant.
@@ -276,11 +300,13 @@ def load_participant_sensor_data(
         pid: Participant ID (e.g., "P001")
         start_ms: Optional start timestamp in milliseconds (inclusive)
         end_ms: Optional end timestamp in milliseconds (exclusive)
+        downsample_hz: Sampling frequency in Hz (default: 100)
 
     Returns:
         Polars DataFrame with columns: timestamp_ms, x, y, z, annotation
     """
-    participant_path = os.path.join(SENSOR_DATA_DIR, f"pid={pid}", "data.parquet")
+    sensor_data_dir = get_sensor_data_dir(downsample_hz)
+    participant_path = os.path.join(sensor_data_dir, f"pid={pid}", "data.parquet")
 
     if not os.path.exists(participant_path):
         raise FileNotFoundError(f"Data for {pid} not found at {participant_path}")
