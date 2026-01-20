@@ -318,12 +318,175 @@ assert len(train_df["x"][0]) == len(train_df["annotations"][0])
 
 # Implementation Plan: Step 2B - Task-Specific Formatting
 
-In the phase 2A we kept all labels per window. This next phase is about converting windows into supervised tasks for our TSLM models. We will have only two types of tasks at first – first is classification, second is QA pairs.
+In phase 2A we kept all raw annotations per window. This next phase converts windows into supervised tasks for our TSLM models. We will have two types of tasks – classification and QA pairs.
 
-## Classification
+---
 
-User can choose label to generate the dataset. The label assignment of each section is mode (most common) annotation.
+## Classification Dataset
+
+### Design Decision: Store Mapped Labels Directly
+
+We store the **final mapped labels** (e.g., "sleep", "sedentary") rather than raw annotations in the classification dataset. Rationale:
+
+1. **Different schemes = different models** - A 4-class Walmsley2020 model is fundamentally different from a 12-class WillettsSpecific2018 model
+2. **Phase 2A preserves raw annotations** - Users can regenerate classification datasets with different schemes from the phase 2A windows
+3. **Self-contained datasets** - Standard ML practice; no runtime mapping needed
+4. **Path encodes the scheme** - Clear which label scheme was used
+
+### How Label Mapping Works
+
+Raw annotations in sensor data (e.g., `"7030 sleeping;MET 0.95"`) are mapped to simplified labels using `annotation-label-dictionary.csv`:
+
+```
+Raw annotation                                              → Walmsley2020
+─────────────────────────────────────────────────────────────────────────
+"7030 sleeping;MET 0.95"                                    → "sleep"
+"occupation;office and administrative support;11580..."     → "sedentary"
+"home activity;miscellaneous;walking;17150..."              → "light"
+"sports/gym;MET 8.0"                                        → "moderate-vigorous"
+```
+
+### Available Label Schemes
+
+| Scheme | Classes | Labels |
+|--------|---------|--------|
+| **Walmsley2020** | 4 | `sleep`, `sedentary`, `light`, `moderate-vigorous` |
+| **Doherty2018** | 5 | `sleep`, `sedentary`, `tasks-light`, `walking`, `moderate` |
+| **Willetts2018** | 5 | `sleep`, `sit-stand`, `mixed`, `walking`, `vehicle` |
+| **WillettsSpecific2018** | ~12 | `sleep`, `sitting`, `standing`, `walking`, `sports`, `manual-work`, `household-chores`, `mixed-activity`, `bicycling`, `vehicle` |
+| **DohertySpecific2018** | ~10 | `sleep`, `sedentary-screen`, `sedentary-non-screen`, `tasks-light`, `tasks-moderate`, `walking`, `sports-continuous`, `sport-interrupted`, `bicycling`, `vehicle` |
+| **WillettsMET2018** | ~10 | `sleep`, `sitting`, `sitstand+lowactivity`, `sitstand+activity`, `walking`, `walking+activity`, `gym`, `sports`, `bicycling`, `vehicle` |
+
+### Window-Level Label Assignment
+
+Each window contains multiple samples (e.g., 300 samples for 10s @ 30Hz), each with its own annotation. To get a single label per window:
+
+1. **Map** each raw annotation to the chosen label scheme
+2. **Mode** (most frequent label) becomes the window label
+3. **Filter** windows where mode doesn't meet a confidence threshold (optional)
+
+```python
+# Example: 10s window with 300 samples
+annotations = ["7030 sleeping;MET 0.95"] * 250 + ["sitting;..."] * 50
+mapped = ["sleep"] * 250 + ["sedentary"] * 50
+label = mode(mapped)  # → "sleep" (83% confidence)
+```
+
+### Output Structure
+
+```
+data/capture24/
+├── windows/                                    # Phase 2A
+│   └── {window_size_s}s_{hz}hz/
+│       ├── train/data.parquet
+│       ├── val/data.parquet
+│       └── test/data.parquet
+└── classification/                             # Phase 2B
+    └── {window_size_s}s_{hz}hz/{label_scheme}/
+        ├── train/data.parquet
+        ├── val/data.parquet
+        ├── test/data.parquet
+        └── metadata.json                       # class names, counts, etc.
+```
+
+### Classification Schema
+
+```
+window_id: string           # "{pid}_{start_ms}"
+pid: string                 # Participant ID
+start_ms: int64             # Window start timestamp
+end_ms: int64               # Window end timestamp
+x: list[float32]            # Accelerometer x-axis
+y: list[float32]            # Accelerometer y-axis
+z: list[float32]            # Accelerometer z-axis
+label: string               # Mapped label (e.g., "sleep", "sedentary")
+label_id: int32             # Integer encoding of label (for training)
+confidence: float32         # Fraction of samples with the mode label
+```
+
+### Files to Create
+
+```
+src/opentslm/time_series_datasets/capture24/
+├── capture24_classification.py     # Classification dataset creation
+└── __init__.py                     # Update exports
+```
+
+### Functions in `capture24_classification.py`
+
+**Constants:**
+- `CLASSIFICATION_DIR` - `data/capture24/classification/`
+- `LABEL_SCHEMES` - List of valid scheme names
+
+**Functions:**
+- `load_label_mapping(label_scheme: str) -> dict[str, str]` - Load annotation → label mapping
+- `get_window_label(annotations: list[str], mapping: dict) -> tuple[str, float]` - Returns (mode_label, confidence)
+- `create_classification_dataset(window_size_s: int, effective_hz: int, label_scheme: str, min_confidence: float = 0.0)` - Main entry point
+- `get_classification_path(window_size_s: int, effective_hz: int, label_scheme: str) -> Path`
+- `load_classification_dataset(window_size_s: int, effective_hz: int, label_scheme: str, split: str) -> pl.DataFrame`
+- `get_class_names(label_scheme: str) -> list[str]` - Returns ordered list of class names
+- `get_class_distribution(window_size_s: int, effective_hz: int, label_scheme: str, split: str) -> dict[str, int]`
+
+### Implementation Steps
+
+1. **Load phase 2A windows** for each split (train/val/test)
+2. **Load label mapping** from `annotation-label-dictionary.csv`
+3. **For each window:**
+   - Map all raw annotations to labels using the chosen scheme
+   - Compute mode (most frequent label)
+   - Compute confidence (fraction of samples with mode label)
+   - Filter if confidence < min_confidence (optional)
+4. **Encode labels** to integers (alphabetical order for consistency)
+5. **Save** to parquet with metadata.json containing class info
+6. **Report** class distribution statistics
+
+### Verification
+
+```python
+from opentslm.time_series_datasets.capture24 import (
+    create_classification_dataset,
+    load_classification_dataset,
+    get_class_names,
+)
+
+# Create classification dataset with Walmsley2020 labels
+create_classification_dataset(
+    window_size_s=10,
+    effective_hz=30,
+    label_scheme="Walmsley2020",
+    min_confidence=0.5  # Optional: require 50%+ agreement
+)
+
+# Load and verify
+train_df = load_classification_dataset(
+    window_size_s=10, effective_hz=30, label_scheme="Walmsley2020", split="train"
+)
+
+# Check schema
+assert "label" in train_df.columns
+assert "label_id" in train_df.columns
+assert "confidence" in train_df.columns
+
+# Check class names
+classes = get_class_names("Walmsley2020")
+assert classes == ["light", "moderate-vigorous", "sedentary", "sleep"]
+
+# Verify label_id encoding
+assert train_df["label_id"].max() == len(classes) - 1
+```
+
+### CLI Usage
+
+```bash
+python -m opentslm.time_series_datasets.capture24.capture24_classification \
+    --window-size-s 10 \
+    --effective-hz 30 \
+    --label-scheme Walmsley2020 \
+    --min-confidence 0.5
+```
+
+---
 
 ## QA Pairs
 
-(Will be done later - need to use another GPT model for example + annotations extraction used by SensorLM from Google for example.)
+(Will be implemented later - requires LLM-based question generation using annotations, similar to SensorLLM from Google.)
