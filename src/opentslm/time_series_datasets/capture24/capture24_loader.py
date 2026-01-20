@@ -3,12 +3,14 @@
 #
 # SPDX-License-Identifier: MIT
 
+import argparse
 import gzip
 import os
 import zipfile
 from pathlib import Path
 from typing import Optional
 
+from joblib import Parallel, delayed
 import pandas as pd
 import polars as pl
 import pyarrow as pa
@@ -51,7 +53,7 @@ def parse_timestamp(timestamp_str: str) -> int:
 
 
 def process_participant_file(
-    zip_file: zipfile.ZipFile,
+    zip_path: str,
     csv_gz_name: str,
     pid: str,
     downsample_hz: int = 100
@@ -60,7 +62,7 @@ def process_participant_file(
     Extract and convert a single participant's gzipped CSV to Parquet.
 
     Args:
-        zip_file: Open ZipFile object
+        zip_path: Path to the ZIP file
         csv_gz_name: Name of the .csv.gz file in the ZIP
         pid: Participant ID (e.g., "P001")
         downsample_hz: Target sampling frequency in Hz (default: 100 = no downsampling)
@@ -78,53 +80,55 @@ def process_participant_file(
         print(f"  {pid} already exists, skipping")
         return
 
-    # Extract gzipped CSV from ZIP and decompress
-    with zip_file.open(csv_gz_name) as gz_file:
-        with gzip.open(gz_file, 'rt') as csv_file:
-            # Read CSV in chunks to manage memory
-            chunk_size = 100000
-            chunks = []
+    # Open ZIP file and extract gzipped CSV
+    with zipfile.ZipFile(zip_path, 'r') as zip_file:
+        with zip_file.open(csv_gz_name) as gz_file:
+            with gzip.open(gz_file, 'rt') as csv_file:
+                # Read CSV in chunks to manage memory
+                chunk_size = 100000
+                chunks = []
 
-            # Use tqdm for chunk processing progress
-            chunk_iterator = pd.read_csv(csv_file, chunksize=chunk_size)
-            for chunk in tqdm(chunk_iterator, desc=f"  {pid} chunks", leave=False, unit="chunk"):
-                # Convert timestamp to milliseconds
-                chunk['timestamp_ms'] = chunk['time'].apply(parse_timestamp)
+                # Use tqdm for chunk processing progress
+                chunk_iterator = pd.read_csv(csv_file, chunksize=chunk_size)
+                for chunk in tqdm(chunk_iterator, desc=f"  {pid} chunks", leave=False, unit="chunk"):
+                    # Convert timestamp to milliseconds
+                    chunk['timestamp_ms'] = chunk['time'].apply(parse_timestamp)
 
-                # Select and rename columns, making explicit copy to avoid pandas warnings
-                chunk = chunk[['timestamp_ms', 'x', 'y', 'z', 'annotation']].copy()
+                    # Select and rename columns, making explicit copy to avoid pandas warnings
+                    chunk = chunk[['timestamp_ms', 'x', 'y', 'z', 'annotation']].copy()
 
-                # Convert to float32 for storage efficiency
-                chunk['x'] = chunk['x'].astype('float32')
-                chunk['y'] = chunk['y'].astype('float32')
-                chunk['z'] = chunk['z'].astype('float32')
+                    # Convert to float32 for storage efficiency
+                    chunk['x'] = chunk['x'].astype('float32')
+                    chunk['y'] = chunk['y'].astype('float32')
+                    chunk['z'] = chunk['z'].astype('float32')
 
-                # Downsample if requested (100Hz is the original frequency)
-                if downsample_hz < 100:
-                    downsample_factor = 100 // downsample_hz
-                    chunk = chunk.iloc[::downsample_factor].reset_index(drop=True)
+                    # Downsample if requested (100Hz is the original frequency)
+                    if downsample_hz < 100:
+                        downsample_factor = 100 // downsample_hz
+                        chunk = chunk.iloc[::downsample_factor].reset_index(drop=True)
 
-                chunks.append(chunk)
+                    chunks.append(chunk)
 
-            # Combine all chunks
-            df = pd.concat(chunks, ignore_index=True)
+                # Combine all chunks
+                df = pd.concat(chunks, ignore_index=True)
 
-            # Write to Parquet with snappy compression
-            table = pa.Table.from_pandas(df)
-            pq.write_table(
-                table,
-                output_path,
-                compression='snappy',
-                use_dictionary=True
-            )
+                # Write to Parquet with snappy compression
+                table = pa.Table.from_pandas(df)
+                pq.write_table(
+                    table,
+                    output_path,
+                    compression='snappy',
+                    use_dictionary=True
+                )
 
-            sampling_info = f" at {downsample_hz}Hz" if downsample_hz < 100 else ""
-            print(f"  ✓ {pid}: {len(df):,} samples written ({len(chunks)} chunks){sampling_info}")
+                sampling_info = f" at {downsample_hz}Hz" if downsample_hz < 100 else ""
+                print(f"  ✓ {pid}: {len(df):,} samples written ({len(chunks)} chunks){sampling_info}")
 
 
 def extract_and_convert_to_parquet(
     max_participants: Optional[int] = None,
-    downsample_hz: int = 100
+    downsample_hz: int = 100,
+    n_jobs: int = 1
 ) -> None:
     """
     Extract Capture-24 ZIP and convert all participant data to Parquet format.
@@ -132,6 +136,7 @@ def extract_and_convert_to_parquet(
     Args:
         max_participants: Optional limit on number of participants to process (for testing)
         downsample_hz: Target sampling frequency in Hz (default: 100 = no downsampling)
+        n_jobs: Number of parallel jobs for processing participants (default: 1)
 
     Structure created:
         data/capture24/
@@ -189,27 +194,35 @@ def extract_and_convert_to_parquet(
                 pq.write_table(table, labels_path, compression='snappy')
             print(f"  Label mappings saved: {len(labels_df)} annotations")
 
-        # Process all participant CSV.gz files
-        participant_files = sorted([f for f in all_files if f.endswith('.csv.gz')])
+    # Process all participant CSV.gz files
+    participant_files = sorted([f for f in all_files if f.endswith('.csv.gz')])
 
-        # Limit number of participants if specified
-        if max_participants is not None:
-            participant_files = participant_files[:max_participants]
-            print(f"\nProcessing {len(participant_files)} participant files (limited for testing)...")
-        else:
-            print(f"\nProcessing {len(participant_files)} participant files...")
+    # Limit number of participants if specified
+    if max_participants is not None:
+        participant_files = participant_files[:max_participants]
+        print(f"\nProcessing {len(participant_files)} participant files (limited for testing)...")
+    else:
+        print(f"\nProcessing {len(participant_files)} participant files...")
 
-        for csv_gz_name in tqdm(participant_files):
-            # Extract PID from filename (e.g., "P001.csv.gz" -> "P001")
-            pid = os.path.basename(csv_gz_name).replace('.csv.gz', '')
-            process_participant_file(zip_file, csv_gz_name, pid, downsample_hz)
+    # Process participants in parallel
+    Parallel(n_jobs=n_jobs)(
+        delayed(process_participant_file)(
+            CAPTURE24_ZIP_PATH,
+            csv_gz_name,
+            os.path.basename(csv_gz_name).replace('.csv.gz', ''),
+            downsample_hz
+        )
+        for csv_gz_name in tqdm(participant_files, desc="Processing participants")
+    )
 
     print("\n✓ Capture-24 dataset extraction complete!")
 
 
 def ensure_capture24_data(
     max_participants: Optional[int] = None,
-    downsample_hz: int = 100
+    downsample_hz: int = 100,
+    n_jobs: int = 1,
+    overwrite: bool = False
 ) -> None:
     """
     Main entry point: ensure Capture-24 data is extracted and converted to Parquet.
@@ -217,16 +230,22 @@ def ensure_capture24_data(
     Args:
         max_participants: Optional limit on number of participants to process (for testing)
         downsample_hz: Target sampling frequency in Hz (default: 100 = no downsampling)
+        n_jobs: Number of parallel jobs for processing participants (default: 1)
+        overwrite: Force re-extraction even if data exists (default: False)
 
-    If Parquet files already exist, does nothing.
+    If Parquet files already exist and overwrite is False, does nothing.
     Otherwise, extracts from ZIP and converts to Parquet format.
     """
-    if is_data_ready():
+    if is_data_ready() and not overwrite:
         print("Capture-24 Parquet data already exists")
         return
 
-    print("Capture-24 Parquet data not found, extracting from ZIP...")
-    extract_and_convert_to_parquet(max_participants=max_participants, downsample_hz=downsample_hz)
+    if overwrite:
+        print("Overwrite flag set, re-extracting from ZIP...")
+    else:
+        print("Capture-24 Parquet data not found, extracting from ZIP...")
+
+    extract_and_convert_to_parquet(max_participants=max_participants, downsample_hz=downsample_hz, n_jobs=n_jobs)
 
 
 # ---------------------------
@@ -279,39 +298,57 @@ def load_participant_sensor_data(
 
 
 if __name__ == "__main__":
-    import sys
+    parser = argparse.ArgumentParser(
+        description="Extract and convert Capture-24 dataset to Parquet format"
+    )
+    parser.add_argument(
+        '--max-participants', '-n',
+        type=int,
+        default=None,
+        help='Maximum number of participants to process (for testing)'
+    )
+    parser.add_argument(
+        '--downsample-hz', '-d',
+        type=int,
+        default=100,
+        help='Target sampling frequency in Hz (default: 100)'
+    )
+    parser.add_argument(
+        '--n-jobs', '-j',
+        type=int,
+        default=1,
+        help='Number of parallel jobs (default: 1)'
+    )
+    parser.add_argument(
+        '--overwrite',
+        action='store_true',
+        help='Force re-extraction even if data exists'
+    )
+
+    args = parser.parse_args()
 
     print("=" * 60)
     print("Capture-24 Dataset Extraction")
     print("=" * 60)
 
-    # Parse command line arguments
-    max_participants = None
-    downsample_hz = 100
+    if args.max_participants is not None:
+        print(f"Limiting extraction to {args.max_participants} participants for testing")
 
-    if len(sys.argv) > 1:
-        try:
-            max_participants = int(sys.argv[1])
-            print(f"Limiting extraction to {max_participants} participants for testing")
+    if args.downsample_hz < 100:
+        print(f"Downsampling to {args.downsample_hz}Hz")
 
-        except ValueError:
-            print(f"Invalid max_participants: {sys.argv[1]}")
-            print("Usage: python capture24_loader.py [max_participants] [downsample_hz]")
-            sys.exit(1)
-
-    if len(sys.argv) > 2:
-        try:
-            downsample_hz = int(sys.argv[2])
-            print(f"Downsampling to {downsample_hz}Hz")
-        except ValueError:
-            print(f"Invalid downsample_hz: {sys.argv[2]}")
-            print("Usage: python capture24_loader.py [max_participants] [downsample_hz]")
-            sys.exit(1)
+    if args.n_jobs > 1:
+        print(f"Using {args.n_jobs} parallel jobs")
 
     print()
 
     # Extract and convert data
-    ensure_capture24_data(max_participants=max_participants, downsample_hz=downsample_hz)
+    ensure_capture24_data(
+        max_participants=args.max_participants,
+        downsample_hz=args.downsample_hz,
+        n_jobs=args.n_jobs,
+        overwrite=args.overwrite
+    )
 
     # Quick verification
     print("\nVerifying extraction...")
