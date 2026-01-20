@@ -21,4 +21,5 @@ dist/
 
 *.license
 
-Capture-24-implementation.md
+Capture24*.md
+extract_capture24.py
