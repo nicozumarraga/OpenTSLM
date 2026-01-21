@@ -20,6 +20,7 @@ from opentslm.time_series_datasets.capture24.capture24_loader import (
     load_label_mappings,
 )
 from opentslm.time_series_datasets.capture24.capture24_windows import (
+    format_window_size,
     get_windows_path,
     load_windows,
 )
@@ -47,7 +48,7 @@ LABEL_SCHEMES = {
 # ---------------------------
 
 def get_classification_path(
-    window_size_s: int,
+    window_size_s: float,
     effective_hz: int,
     label_scheme: str
 ) -> Path:
@@ -55,14 +56,15 @@ def get_classification_path(
     Get path for classification dataset directory based on configuration.
 
     Args:
-        window_size_s: Window size in seconds
+        window_size_s: Window size in seconds (can be float like 2.56)
         effective_hz: Effective sampling frequency in Hz
         label_scheme: Label scheme name (e.g., "Walmsley2020")
 
     Returns:
         Path to classification dataset directory
     """
-    dir_name = f"{window_size_s}s_{effective_hz}hz"
+    window_str = format_window_size(window_size_s)
+    dir_name = f"{window_str}_{effective_hz}hz"
     return Path(CLASSIFICATION_DIR) / dir_name / label_scheme
 
 
@@ -147,8 +149,8 @@ def get_window_label(
 
 
 def create_classification_dataset(
-    window_size_s: int = 10,
-    effective_hz: int = 100,
+    window_size_s: float = 2.56,
+    effective_hz: int = 50,
     label_scheme: str = "Walmsley2020",
     min_confidence: float = 0.0,
     overwrite: bool = False
@@ -160,8 +162,8 @@ def create_classification_dataset(
     with a single label per window determined by mode (most frequent label).
 
     Args:
-        window_size_s: Window size in seconds (default: 10)
-        effective_hz: Effective sampling frequency in Hz (default: 100)
+        window_size_s: Window size in seconds
+        effective_hz: Effective sampling frequency in Hz
         label_scheme: Label scheme to use (default: "Walmsley2020")
         min_confidence: Minimum confidence threshold for including windows (default: 0.0)
         overwrite: Force re-creation even if dataset exists (default: False)
@@ -335,7 +337,7 @@ def create_classification_dataset(
 
 
 def load_classification_dataset(
-    window_size_s: int,
+    window_size_s: float,
     effective_hz: int,
     label_scheme: str,
     split: str
@@ -379,7 +381,7 @@ def load_classification_dataset(
 
 
 def load_classification_metadata(
-    window_size_s: int,
+    window_size_s: float,
     effective_hz: int,
     label_scheme: str
 ) -> dict:
@@ -408,7 +410,7 @@ def load_classification_metadata(
 
 
 def get_class_distribution(
-    window_size_s: int,
+    window_size_s: float,
     effective_hz: int,
     label_scheme: str,
     split: str
@@ -435,15 +437,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--window-size-s', '-w',
-        type=int,
-        default=10,
-        help='Window size in seconds (default: 10)'
+        type=float,
+        default=2.56,
+        help='Window size in seconds (default: 2.56 to match HAR CoT)'
     )
     parser.add_argument(
         '--effective-hz', '-e',
         type=int,
-        default=100,
-        help='Effective sampling frequency in Hz (default: 100)'
+        default=50,
+        help='Effective sampling frequency in Hz (default: 50 to match HAR CoT)'
     )
     parser.add_argument(
         '--label-scheme', '-l',

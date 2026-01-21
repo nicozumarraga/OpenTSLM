@@ -34,18 +34,36 @@ WINDOWS_DIR = os.path.join(CAPTURE24_DATA_DIR, "windows")
 # Helper Functions
 # ---------------------------
 
-def get_windows_path(window_size_s: int, effective_hz: int) -> Path:
+def format_window_size(window_size_s: float) -> str:
+    """
+    Format window size for directory naming.
+
+    Args:
+        window_size_s: Window size in seconds (can be float like 2.56)
+
+    Returns:
+        Formatted string suitable for directory names (e.g., "10s" or "2_56s")
+    """
+    if window_size_s == int(window_size_s):
+        return f"{int(window_size_s)}s"
+    else:
+        # Replace decimal point with underscore for filesystem compatibility
+        return f"{window_size_s}s".replace(".", "_")
+
+
+def get_windows_path(window_size_s: float, effective_hz: int) -> Path:
     """
     Get path for windows directory based on configuration.
 
     Args:
-        window_size_s: Window size in seconds
+        window_size_s: Window size in seconds (can be float like 2.56)
         effective_hz: Effective sampling frequency in Hz
 
     Returns:
         Path to windows directory
     """
-    dir_name = f"{window_size_s}s_{effective_hz}hz"
+    window_str = format_window_size(window_size_s)
+    dir_name = f"{window_str}_{effective_hz}hz"
     return Path(WINDOWS_DIR) / dir_name
 
 
@@ -124,7 +142,7 @@ def downsample_sensor_data(
 
 def extract_participant_windows(
     pid: str,
-    window_size_s: int,
+    window_size_s: float,
     source_hz: int = 100,
     downsample_hz: Optional[int] = None,
     annotation_threshold: float = 0.6
@@ -173,7 +191,12 @@ def extract_participant_windows(
         effective_hz = source_hz
 
     # Calculate window size in samples
-    window_samples = window_size_s * effective_hz
+    window_samples_float = window_size_s * effective_hz # use window 2.56 and effective_hz = 50Hz to match the existing HAR_CoT dataset at 128 samples per time series.
+    assert window_samples_float == int(window_samples_float), (
+        f"window_size_s ({window_size_s}) * effective_hz ({effective_hz}) = {window_samples_float} "
+        f"must be a whole number of samples"
+    )
+    window_samples = int(window_samples_float)
 
     # Calculate number of complete windows
     n_samples = len(data)
@@ -236,9 +259,9 @@ def extract_participant_windows(
 
 
 def extract_windows(
-    window_size_s: int = 10,
+    window_size_s: float = 2.56,
     source_hz: int = 100,
-    downsample_hz: Optional[int] = None,
+    downsample_hz: Optional[int] = 50,
     annotation_threshold: float = 0.6,
     seed: int = 42,
     train_ratio: float = 0.7,
@@ -251,8 +274,8 @@ def extract_windows(
     Extract non-overlapping windows from all participants and save to train/val/test splits.
 
     Args:
-        window_size_s: Window size in seconds (default: 10)
-        source_hz: Source data sampling frequency in Hz (default: 100)
+        window_size_s: Window size in seconds (default: 2.56, match HAR CoT)
+        source_hz: Source data sampling frequency in Hz (default: 2.56, match HAR CoT)
         downsample_hz: Optional target sampling frequency (None = no downsampling)
         annotation_threshold: Minimum fraction of samples that must have annotations (default: 0.6)
         seed: Random seed for participant split (default: 42)
@@ -372,7 +395,7 @@ def extract_windows(
 
 
 def load_windows(
-    window_size_s: int,
+    window_size_s: float,
     effective_hz: int = 100,
     split: str = "train"
 ) -> pl.DataFrame:
@@ -408,9 +431,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--window-size-s', '-w',
-        type=int,
-        default=10,
-        help='Window size in seconds (default: 10)'
+        type=float,
+        default=2.56,
+        help='Window size in seconds (default: 2.56 to match HAR CoT)'
     )
     parser.add_argument(
         '--source-hz',
@@ -421,8 +444,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '--downsample-hz', '-d',
         type=int,
-        default=None,
-        help='Target sampling frequency in Hz (default: None = no downsampling)'
+        default=50,
+        help='Target sampling frequency in Hz (default: 50 to match HAR CoT)'
     )
     parser.add_argument(
         '--annotation-threshold', '-a',

@@ -3,8 +3,8 @@
 #SBATCH --partition=cpu-skylake
 #SBATCH --output=capture24_extract_%j.log
 #SBATCH --error=capture24_extract_%j.log
-#SBATCH --time=12:00:00
-#SBATCH --cpus-per-task=4
+#SBATCH --time=48:00:00
+#SBATCH --cpus-per-task=6
 #SBATCH --mem=32G
 
 # Capture-24 Data Extraction Job
@@ -23,7 +23,7 @@ cd /zfsstore/user/s4350529/projects/OpenTSLM-clone
 source .venv/bin/activate
 
 # Run extraction with parallel processing
-python -m opentslm.time_series_datasets.capture24.capture24_loader --n-jobs 4
+python -m opentslm.time_series_datasets.capture24.capture24_loader --n-jobs 6 --overwrite
 
 echo ""
 echo "========================================"

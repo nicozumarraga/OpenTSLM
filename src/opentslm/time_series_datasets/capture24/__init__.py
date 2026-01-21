@@ -14,6 +14,7 @@ from .capture24_loader import (
 from .capture24_windows import (
     WINDOWS_DIR,
     extract_windows,
+    format_window_size,
     get_windows_path,
     load_windows,
     split_participants,
@@ -45,6 +46,7 @@ __all__ = [
     "CAPTURE24_DATA_DIR",
     # Windows
     "extract_windows",
+    "format_window_size",
     "load_windows",
     "get_windows_path",
     "split_participants",
