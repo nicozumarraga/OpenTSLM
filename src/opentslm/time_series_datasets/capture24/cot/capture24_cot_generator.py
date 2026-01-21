@@ -25,20 +25,25 @@ import argparse
 import json
 import os
 import random
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import polars as pl
+import seaborn as sns
+from google import genai
+from PIL import Image
 from tqdm import tqdm
 
 from opentslm.time_series_datasets.capture24.capture24_classification import (
-    get_classification_path,
     load_classification_dataset,
-    load_classification_metadata,
 )
 from opentslm.time_series_datasets.constants import RAW_DATA
 
@@ -62,24 +67,13 @@ CAPTURE24_DISSIMILAR_MAPPING = {
 DEFAULT_WINDOW_SIZE_S = 2.56
 DEFAULT_EFFECTIVE_HZ = 50
 DEFAULT_LABEL_SCHEME = "Walmsley2020"
-DEFAULT_SAMPLES = {"train": 10000, "val": 2000, "test": 2000}
+DEFAULT_SAMPLES = {"train": 20, "val": 0, "test": 0} # for testing
 
-# Prompt template for CoT generation
-COT_PROMPT_TEMPLATE = """You are shown accelerometer data from a wrist-worn sensor over a {window_duration:.2f} second window.
+# Prompt template for CoT generation (image-based)
+COT_PROMPT_TEMPLATE = """You are shown a time-series plot of accelerometer data over a {window_duration:.2f} second window.
 This data corresponds to one of two possible activities:
 - {correct_activity}
 - {dissimilar_activity}
-
-The accelerometer readings are provided for three axes (X, Y, Z).
-
-X-axis data (mean={x_mean:.4f}, std={x_std:.4f}):
-{x_data}
-
-Y-axis data (mean={y_mean:.4f}, std={y_std:.4f}):
-{y_data}
-
-Z-axis data (mean={z_mean:.4f}, std={z_std:.4f}):
-{z_data}
 
 Your task is to classify the activity based on analysis of the data.
 
@@ -87,11 +81,63 @@ Instructions:
 - Begin by analyzing the time series without assuming a specific label.
 - Think step-by-step about what the observed patterns suggest regarding movement intensity and behavior.
 - Write your rationale as a single, natural paragraph - do not use bullet points, numbered steps, or section headings.
-- Do not refer back to the data or to the act of visual analysis in your rationale; reason about the time-series patterns directly.
+- Do not refer back to the plot or to the act of visual analysis in your rationale; the plot is only for reference but you should reason about the time-series data.
 - Do **not** assume any answer at the beginning - analyze as if you do not yet know which class is correct.
 - Do **not** mention either class label until the final sentence.
-- Make sure that your last word is the answer. You MUST end your response with "Answer: {correct_activity}"
+- Make sure that your last word is the answer. You MUST end your response with "Answer: {correct_activity}" in the answer field, not in the rationale.
 """
+
+
+def create_timeseries_plot(
+    x_data: np.ndarray,
+    y_data: np.ndarray,
+    z_data: np.ndarray,
+    effective_hz: int,
+    window_duration: float,
+    figsize: Tuple[int, int] = (10, 8),
+    dpi: int = 100,
+) -> Image.Image:
+    """
+    Create a 3x1 subplot figure showing X, Y, Z accelerometer axes.
+
+    Args:
+        x_data: X-axis accelerometer readings
+        y_data: Y-axis accelerometer readings
+        z_data: Z-axis accelerometer readings
+        effective_hz: Sampling frequency in Hz
+        window_duration: Duration of the window in seconds
+        figsize: Figure size as (width, height) tuple
+        dpi: Resolution for the output image
+
+    Returns:
+        PIL Image containing the plot
+    """
+    sns.set_theme(style="whitegrid")
+    fig, axes = plt.subplots(3, 1, figsize=figsize, sharex=True)
+
+    # Create time axis
+    n_samples = len(x_data)
+    time = np.linspace(0, window_duration, n_samples)
+
+    # Plot each axis
+    data = [('X-axis', x_data), ('Y-axis', y_data), ('Z-axis', z_data)]
+    for ax, (label, values) in zip(axes, data):
+        sns.lineplot(x=time, y=values, ax=ax, linewidth=0.8)
+        ax.set_ylabel(f'{label} (g)')
+        ax.set_title(f'{label} Accelerometer Data')
+
+    axes[-1].set_xlabel('Time (s)')
+    plt.tight_layout()
+
+    # Convert to PIL Image
+    buf = BytesIO()
+    fig.savefig(buf, format='png', dpi=dpi, bbox_inches='tight')
+    buf.seek(0)
+    img = Image.open(buf).copy()  # Copy to allow buffer to be closed
+    buf.close()
+    plt.close(fig)
+
+    return img
 
 
 # ---------------------------
@@ -107,13 +153,15 @@ class GenerationConfig:
     train_samples: int = DEFAULT_SAMPLES["train"]
     val_samples: int = DEFAULT_SAMPLES["val"]
     test_samples: int = DEFAULT_SAMPLES["test"]
-    batch_size: int = 50
-    checkpoint_every: int = 100
-    max_retries: int = 3
-    retry_delay: float = 1.0
-    api_delay: float = 0.1  # Delay between API calls
+    max_retries: int = 5
+    base_retry_delay: float = 1.0
+    max_retry_delay: float = 60.0
     output_dir: str = CAPTURE24_COT_DATA_DIR
     seed: int = 42
+    max_workers: int = 4
+    # Plot configuration
+    plot_dpi: int = 100
+    plot_figsize: Tuple[int, int] = (10, 8)
 
 
 @dataclass
@@ -122,7 +170,6 @@ class GenerationStats:
     total_processed: int = 0
     successful: int = 0
     failed: int = 0
-    validation_failed: int = 0
     api_errors: int = 0
     class_counts: Dict[str, int] = field(default_factory=dict)
 
@@ -131,7 +178,6 @@ class GenerationStats:
             "total_processed": self.total_processed,
             "successful": self.successful,
             "failed": self.failed,
-            "validation_failed": self.validation_failed,
             "api_errors": self.api_errors,
             "class_counts": self.class_counts,
         }
@@ -141,64 +187,119 @@ class GenerationStats:
 # API Client
 # ---------------------------
 
-class GeminiClient:
-    """Client for Google Gemini API calls."""
+# JSON schema for structured CoT response - I make the LLM answer the answer instead of appending it based on vibe that it will "think" better if it has to give the answer.
+COT_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "rationale": {
+            "type": "string",
+            "description": "Step-by-step reasoning analyzing the accelerometer data patterns without mentioning the activity labels until the end."
+        },
+        "answer": {
+            "type": "string",
+            "description": "The classified activity label (one of the two options provided)."
+        }
+    },
+    "required": ["rationale", "answer"]
+}
 
-    def __init__(self, model: str = "gemini-2.5-flash-lite"):
+
+class GeminiClient:
+    """Client for Google Gemini API calls with exponential backoff retry."""
+
+    # HTTP status codes that should trigger a retry
+    RETRYABLE_STATUS_CODES = (429, 500, 502, 503, 504)
+
+    def __init__(self, config: GenerationConfig, model: str = "gemini-2.5-flash-lite"):
         self.model = model
+        self.config = config
         self._client = None
 
     def _ensure_client(self):
         """Lazily initialize the Gemini client."""
         if self._client is None:
-            try:
-                import google.generativeai as genai
-
-                api_key = os.environ.get("GOOGLE_API_KEY")
-                if not api_key:
-                    raise ValueError(
-                        "GOOGLE_API_KEY environment variable is not set. "
-                        "Please set it to use the Gemini API."
-                    )
-
-                genai.configure(api_key=api_key)
-                self._client = genai.GenerativeModel(self.model)
-                print(f"Initialized Gemini client with model: {self.model}")
-            except ImportError:
-                raise ImportError(
-                    "google-generativeai package is required. "
-                    "Install with: pip install google-generativeai"
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "GEMINI_API_KEY environment variable is not set. "
+                    "Please set it to use the Gemini API."
                 )
+            self._client = genai.Client(api_key=api_key)
+            print(f"Initialized Gemini client with model: {self.model}")
 
-    def generate(self, prompt: str, temperature: float = 0.7) -> Optional[str]:
+    def _is_retryable(self, exception: Exception) -> bool:
+        """Check if an exception should trigger a retry."""
+        error_str = str(exception).lower()
+        # Check for rate limit or server errors in the exception message
+        if any(str(code) in error_str for code in self.RETRYABLE_STATUS_CODES):
+            return True
+        # Also retry on connection/timeout errors
+        if any(keyword in error_str for keyword in ["timeout", "connection", "temporarily"]):
+            return True
+        return False
+
+    def _get_retry_delay(self, attempt: int) -> float:
+        """Calculate retry delay with exponential backoff and jitter."""
+        base_delay = self.config.base_retry_delay * (2 ** attempt)
+        # Add jitter: random value between 0 and 1 second
+        jitter = random.uniform(0, 1)
+        delay = min(base_delay + jitter, self.config.max_retry_delay)
+        return delay
+
+    def generate(
+        self,
+        prompt: str,
+        image: Optional[Image.Image] = None,
+        temperature: float = 0.3,
+    ) -> Optional[dict]:
         """
-        Generate text using Gemini API.
+        Generate structured response using Gemini API with retry logic.
 
         Args:
             prompt: The prompt to send to the model
+            image: Optional PIL Image to include with the prompt
             temperature: Sampling temperature (0.0-1.0)
 
         Returns:
-            Generated text or None if failed
+            Dict with 'rationale' and 'answer' keys, or None if all retries failed
         """
         self._ensure_client()
 
-        try:
-            response = self._client.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": temperature,
-                    "max_output_tokens": 512,
-                }
-            )
+        # Build contents: image first (if provided), then prompt
+        if image is not None:
+            contents = [image, prompt]
+        else:
+            contents = prompt
 
-            if response.text:
-                return response.text.strip()
-            return None
+        last_exception = None
+        for attempt in range(self.config.max_retries):
+            try:
+                response = self._client.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config={
+                        "temperature": temperature,  # 0.3 default as per paper
+                        "response_mime_type": "application/json",
+                        "response_json_schema": COT_RESPONSE_SCHEMA,
+                    }
+                )
 
-        except Exception as e:
-            print(f"Gemini API error: {e}")
-            return None
+                if response.text:
+                    return json.loads(response.text)
+                return None
+
+            except Exception as e:
+                last_exception = e
+                if self._is_retryable(e) and attempt < self.config.max_retries - 1:
+                    delay = self._get_retry_delay(attempt)
+                    print(f"  [RETRY] Attempt {attempt + 1}/{self.config.max_retries} failed: {e}. Retrying in {delay:.1f}s...")
+                    time.sleep(delay)
+                else:
+                    # Non-retryable error or last attempt
+                    break
+
+        print(f"  [ERROR] Gemini API failed after {self.config.max_retries} attempts: {last_exception}")
+        return None
 
 
 # ---------------------------
@@ -213,23 +314,21 @@ class Capture24CoTGenerator:
     1. Stratified sampling from classification parquet files
     2. Prompt creation with time series data
     3. LLM API calls for rationale generation
-    4. Validation and checkpointing
+    4. Validation and incremental CSV saving
     """
 
     def __init__(self, config: GenerationConfig):
         self.config = config
-        self.api_client = GeminiClient()
+        self.api_client = GeminiClient(config)
+        self.labels = list(CAPTURE24_DISSIMILAR_MAPPING.keys())
+        self._csv_lock = threading.Lock()
+
+        # Example image saving (thread-safe)
+        self._example_image_saved = False
+        self._example_image_lock = threading.Lock()
 
         # Set random seed for reproducibility
         random.seed(config.seed)
-
-        # Validate label scheme
-        if config.label_scheme not in CAPTURE24_DISSIMILAR_MAPPING.keys() | {"Walmsley2020"}:
-            # For Walmsley2020, the labels match our mapping
-            pass
-
-        # Get labels for the scheme
-        self.labels = list(CAPTURE24_DISSIMILAR_MAPPING.keys())
 
     def sample_windows(
         self,
@@ -304,24 +403,22 @@ class Capture24CoTGenerator:
             return random.choice(other_labels)
         return random.choice(dissimilar_options)
 
-    def create_prompt(self, row: dict, dissimilar_label: str) -> str:
+    def create_prompt(self, row: dict, dissimilar_label: str) -> Tuple[str, Image.Image]:
         """
-        Build the full prompt with time series data and binary classification task.
+        Build the prompt and time series plot image for binary classification.
 
         Args:
             row: Dictionary containing window data (x, y, z, label)
             dissimilar_label: The dissimilar label for binary classification
 
         Returns:
-            Formatted prompt string
+            Tuple of (formatted prompt string, PIL Image of the time series plot)
         """
         x_data = row["x"]
         y_data = row["y"]
         z_data = row["z"]
         correct_label = row["label"]
 
-        # Calculate statistics
-        import numpy as np
         x_arr = np.array(x_data)
         y_arr = np.array(y_data)
         z_arr = np.array(z_data)
@@ -329,212 +426,185 @@ class Capture24CoTGenerator:
         # Calculate window duration
         window_duration = len(x_data) / self.config.effective_hz
 
-        # Format time series as compact string (first 50 values with ellipsis if longer)
-        def format_series(arr, max_values=50):
-            if len(arr) <= max_values:
-                return ", ".join(f"{v:.4f}" for v in arr)
-            else:
-                return ", ".join(f"{v:.4f}" for v in arr[:max_values]) + f", ... ({len(arr)} total values)"
+        # Create the time series plot image
+        image = create_timeseries_plot(
+            x_data=x_arr,
+            y_data=y_arr,
+            z_data=z_arr,
+            effective_hz=self.config.effective_hz,
+            window_duration=window_duration,
+            figsize=self.config.plot_figsize,
+            dpi=self.config.plot_dpi,
+        )
 
         prompt = COT_PROMPT_TEMPLATE.format(
             window_duration=window_duration,
             correct_activity=correct_label,
             dissimilar_activity=dissimilar_label,
-            x_data=format_series(x_arr),
-            y_data=format_series(y_arr),
-            z_data=format_series(z_arr),
-            x_mean=x_arr.mean(),
-            x_std=x_arr.std(),
-            y_mean=y_arr.mean(),
-            y_std=y_arr.std(),
-            z_mean=z_arr.mean(),
-            z_std=z_arr.std(),
         )
 
-        return prompt
+        return prompt, image
 
-    def generate_rationale(self, prompt: str) -> Optional[str]:
-        """
-        Call LLM API to generate rationale.
-
-        Args:
-            prompt: The full prompt to send
-
-        Returns:
-            Generated rationale or None if failed
-        """
-        for attempt in range(self.config.max_retries):
-            result = self.api_client.generate(prompt)
-            if result:
-                return result
-
-            if attempt < self.config.max_retries - 1:
-                time.sleep(self.config.retry_delay * (attempt + 1))
-
-        return None
-
-    def validate_rationale(self, rationale: str, expected_label: str) -> bool:
-        """
-        Verify rationale ends with 'Answer: {label}'.
-
-        Args:
-            rationale: The generated rationale text
-            expected_label: The expected answer label
-
-        Returns:
-            True if rationale is valid, False otherwise
-        """
-        if not rationale:
-            return False
-
-        # Check for proper ending (allow for trailing punctuation)
-        rationale_lower = rationale.strip().lower()
-        expected_endings = [
-            f"answer: {expected_label}".lower(),
-            f"answer: {expected_label}.".lower(),
-        ]
-
-        for ending in expected_endings:
-            if rationale_lower.endswith(ending):
-                return True
-
-        return False
-
-    def _save_checkpoint(
-        self,
-        results: List[dict],
-        split: str,
-        checkpoint_num: int
-    ):
-        """Save intermediate checkpoint."""
-        checkpoint_dir = Path(self.config.output_dir) / "checkpoints" / split
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-
-        checkpoint_path = checkpoint_dir / f"checkpoint_{checkpoint_num:04d}.json"
-        with open(checkpoint_path, "w") as f:
-            json.dump(results, f)
-
-        print(f"  Checkpoint saved: {checkpoint_path} ({len(results)} samples)")
-
-    def _save_final(
-        self,
-        results: List[dict],
-        split: str,
-        stats: GenerationStats
-    ):
-        """Save final CSV file for a split."""
+    def _init_csv(self, split: str) -> Path:
+        """Initialize CSV file with headers for a split."""
         output_dir = Path(self.config.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         output_path = output_dir / f"capture24_cot_{split}.csv"
+        columns = ["x_axis", "y_axis", "z_axis", "label", "prompt", "rationale"]
 
-        # Convert to DataFrame
-        df = pd.DataFrame(results)
-
-        # Convert lists to JSON strings for CSV storage
-        df["x_axis"] = df["x_axis"].apply(json.dumps)
-        df["y_axis"] = df["y_axis"].apply(json.dumps)
-        df["z_axis"] = df["z_axis"].apply(json.dumps)
-
-        # Save CSV
+        # Write header
+        df = pd.DataFrame(columns=columns)
         df.to_csv(output_path, index=False)
-        print(f"Saved {split} dataset: {output_path} ({len(df)} samples)")
 
         return output_path
 
-    def generate_split(
-        self,
-        split: str,
-        n_samples: int,
-        resume_from: Optional[int] = None
-    ) -> Tuple[List[dict], GenerationStats]:
+    def _append_to_csv(self, output_path: Path, row_data: dict):
+        """Append a single sample to CSV file (thread-safe)."""
+        row = {
+            "x_axis": json.dumps(list(row_data["x_axis"]) if hasattr(row_data["x_axis"], "__iter__") else row_data["x_axis"]),
+            "y_axis": json.dumps(list(row_data["y_axis"]) if hasattr(row_data["y_axis"], "__iter__") else row_data["y_axis"]),
+            "z_axis": json.dumps(list(row_data["z_axis"]) if hasattr(row_data["z_axis"], "__iter__") else row_data["z_axis"]),
+            "label": row_data["label"],
+            "prompt": row_data["prompt"],
+            "rationale": row_data["rationale"],
+        }
+
+        df = pd.DataFrame([row])
+        with self._csv_lock:
+            df.to_csv(output_path, mode='a', header=False, index=False)
+
+    def _get_existing_count(self, output_path: Path) -> int:
+        """Count existing samples in CSV for resume support."""
+        if not output_path.exists():
+            return 0
+        try:
+            df = pd.read_csv(output_path)
+            return len(df)
+        except Exception:
+            return 0
+
+    def _process_sample(self, row: dict, idx: int) -> Optional[dict]:
+        """Process a single sample and return result dict or None if failed."""
+        dissimilar_label = self.get_dissimilar_label(row["label"])
+        prompt, image = self.create_prompt(row, dissimilar_label)
+
+        # Save first example (plot + data) as reference (thread-safe)
+        with self._example_image_lock:
+            if not self._example_image_saved:
+                output_dir = Path(self.config.output_dir)
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                # Save plot image
+                plot_path = output_dir / "example_plot.png"
+                image.save(plot_path)
+                print(f"  Saved example plot: {plot_path}")
+
+                # Save time series data to text file
+                data_path = output_dir / "example_data.txt"
+                x_arr = np.array(row["x"])
+                y_arr = np.array(row["y"])
+                z_arr = np.array(row["z"])
+                with open(data_path, "w") as f:
+                    f.write(f"Label: {row['label']}\n")
+                    f.write(f"Dissimilar label: {dissimilar_label}\n")
+                    f.write(f"Window duration: {len(x_arr) / self.config.effective_hz:.2f}s\n")
+                    f.write(f"Samples: {len(x_arr)}\n\n")
+                    f.write(f"X-axis data:\n{', '.join(f'{v:.4f}' for v in x_arr)}\n\n")
+                    f.write(f"Y-axis data:\n{', '.join(f'{v:.4f}' for v in y_arr)}\n\n")
+                    f.write(f"Z-axis data:\n{', '.join(f'{v:.4f}' for v in z_arr)}\n")
+                print(f"  Saved example data: {data_path}")
+
+                self._example_image_saved = True
+
+        response = self.api_client.generate(prompt, image=image)
+
+        if response is None:
+            return None
+
+        rationale_text = response["rationale"]
+        answer = response["answer"]
+        full_rationale = f"{rationale_text} Answer: {answer}"
+
+        return {
+            "idx": idx,
+            "x_axis": row["x"],
+            "y_axis": row["y"],
+            "z_axis": row["z"],
+            "label": row["label"],
+            "prompt": prompt,
+            "rationale": full_rationale,
+        }
+
+    def generate_split(self, split: str, n_samples: int) -> GenerationStats:
         """
-        Generate CoT rationales for a dataset split.
+        Generate CoT rationales for a dataset split using parallel API calls.
 
         Args:
             split: Dataset split ("train", "val", or "test")
             n_samples: Number of samples to generate
-            resume_from: Optional checkpoint number to resume from
 
         Returns:
-            Tuple of (results list, generation stats)
+            GenerationStats with counts of successful/failed samples
         """
         print(f"\n{'='*60}")
-        print(f"Generating {split} split ({n_samples} samples)")
+        print(f"Generating {split} split ({n_samples} samples) with {self.config.max_workers} workers")
         print(f"{'='*60}")
 
         stats = GenerationStats()
-        results = []
 
-        # Load any existing checkpoints if resuming
-        if resume_from is not None:
-            checkpoint_dir = Path(self.config.output_dir) / "checkpoints" / split
-            for i in range(resume_from + 1):
-                checkpoint_path = checkpoint_dir / f"checkpoint_{i:04d}.json"
-                if checkpoint_path.exists():
-                    with open(checkpoint_path) as f:
-                        results.extend(json.load(f))
-            print(f"Resumed from checkpoint {resume_from} with {len(results)} existing samples")
+        # Initialize or resume from existing CSV
+        output_path = Path(self.config.output_dir) / f"capture24_cot_{split}.csv"
+        existing_count = self._get_existing_count(output_path)
+
+        if existing_count > 0:
+            print(f"Resuming from existing CSV with {existing_count} samples")
+        else:
+            output_path = self._init_csv(split)
 
         # Sample windows
         samples_df = self.sample_windows(split, n_samples)
         print(f"Sampled {len(samples_df)} windows for processing")
 
         # Skip already processed samples if resuming
-        start_idx = len(results)
+        start_idx = existing_count
+        stats.successful = existing_count
 
-        checkpoint_num = (start_idx // self.config.checkpoint_every) + 1
+        samples_to_process = [
+            (samples_df.iloc[idx].to_dict(), idx)
+            for idx in range(start_idx, len(samples_df))
+        ]
 
-        # Process each sample
-        for idx in tqdm(range(start_idx, len(samples_df)), desc=f"  {split}"):
-            row = samples_df.iloc[idx].to_dict()
-            stats.total_processed += 1
+        if not samples_to_process:
+            print(f"All {n_samples} samples already processed")
+            return stats
 
-            # Get dissimilar label for binary classification
-            dissimilar_label = self.get_dissimilar_label(row["label"])
+        # Thread-safe stats update lock
+        stats_lock = threading.Lock()
 
-            # Create prompt
-            prompt = self.create_prompt(row, dissimilar_label)
+        with ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
+            futures = {
+                executor.submit(self._process_sample, row, idx): (row, idx)
+                for row, idx in samples_to_process
+            }
 
-            # Generate rationale
-            rationale = self.generate_rationale(prompt)
+            for future in tqdm(as_completed(futures), total=len(futures), desc=f"  {split}"):
+                row, idx = futures[future]
+                result = future.result()
 
-            if rationale is None:
-                stats.api_errors += 1
-                stats.failed += 1
-                continue
+                with stats_lock:
+                    stats.total_processed += 1
 
-            # Validate rationale
-            if not self.validate_rationale(rationale, row["label"]):
-                stats.validation_failed += 1
-                stats.failed += 1
-                continue
+                    if result is None:
+                        stats.api_errors += 1
+                        stats.failed += 1
+                    else:
+                        self._append_to_csv(output_path, result)
+                        stats.successful += 1
+                        stats.class_counts[row["label"]] = stats.class_counts.get(row["label"], 0) + 1
 
-            # Success - add to results
-            results.append({
-                "x_axis": row["x"],
-                "y_axis": row["y"],
-                "z_axis": row["z"],
-                "label": row["label"],
-                "prompt": prompt,
-                "rationale": rationale,
-            })
-
-            stats.successful += 1
-            stats.class_counts[row["label"]] = stats.class_counts.get(row["label"], 0) + 1
-
-            # Checkpoint
-            if len(results) % self.config.checkpoint_every == 0:
-                self._save_checkpoint(results, split, checkpoint_num)
-                checkpoint_num += 1
-
-            # Rate limiting
-            time.sleep(self.config.api_delay)
-
-        # Final save
-        self._save_final(results, split, stats)
-
-        return results, stats
+        print(f"Saved {split} dataset: {output_path} ({stats.successful} samples)")
+        return stats
 
     def generate_all(self) -> Dict[str, GenerationStats]:
         """
@@ -553,7 +623,7 @@ class Capture24CoTGenerator:
 
         for split, n_samples in splits_config.items():
             if n_samples > 0:
-                _, stats = self.generate_split(split, n_samples)
+                stats = self.generate_split(split, n_samples)
                 all_stats[split] = stats
 
         # Save metadata
@@ -588,8 +658,6 @@ class Capture24CoTGenerator:
                 for split, stats in all_stats.items()
             },
             "config": {
-                "batch_size": self.config.batch_size,
-                "checkpoint_every": self.config.checkpoint_every,
                 "max_retries": self.config.max_retries,
                 "seed": self.config.seed,
             }
@@ -602,7 +670,7 @@ class Capture24CoTGenerator:
 
 
 # ---------------------------
-# CLI Entry Point
+# CLI
 # ---------------------------
 
 def main():
@@ -646,16 +714,10 @@ def main():
         help=f"Number of test samples (default: {DEFAULT_SAMPLES['test']})"
     )
     parser.add_argument(
-        "--checkpoint-every",
+        "--max-workers",
         type=int,
-        default=100,
-        help="Save checkpoint every N samples (default: 100)"
-    )
-    parser.add_argument(
-        "--api-delay",
-        type=float,
-        default=0.1,
-        help="Delay between API calls in seconds (default: 0.1)"
+        default=4,
+        help="Number of parallel workers for API calls (default: 4)"
     )
     parser.add_argument(
         "--output-dir",
@@ -687,10 +749,9 @@ def main():
         train_samples=args.train_samples,
         val_samples=args.val_samples,
         test_samples=args.test_samples,
-        checkpoint_every=args.checkpoint_every,
-        api_delay=args.api_delay,
         output_dir=args.output_dir,
         seed=args.seed,
+        max_workers=args.max_workers,
     )
 
     print("=" * 60)
@@ -700,6 +761,7 @@ def main():
     print(f"Label scheme: {config.label_scheme}")
     print(f"Output directory: {config.output_dir}")
     print(f"Samples: train={config.train_samples}, val={config.val_samples}, test={config.test_samples}")
+    print(f"Max workers: {config.max_workers}")
     print()
 
     # Create generator
@@ -714,7 +776,7 @@ def main():
             "val": config.val_samples,
             "test": config.test_samples,
         }
-        _, stats = generator.generate_split(args.split, samples_map[args.split])
+        stats = generator.generate_split(args.split, samples_map[args.split])
         all_stats = {args.split: stats}
 
     # Print summary
@@ -727,7 +789,6 @@ def main():
         print(f"  Successful: {stats.successful}")
         print(f"  Failed: {stats.failed}")
         print(f"  API errors: {stats.api_errors}")
-        print(f"  Validation failed: {stats.validation_failed}")
         print(f"  Class distribution: {stats.class_counts}")
 
     print("\n" + "=" * 60)

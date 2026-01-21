@@ -63,7 +63,7 @@ data/capture24/
 After extraction, split the data into non-overlapping windows for training:
 
 ```bash
-# Basic window extraction (10s windows at 100Hz)
+# Basic window extraction (2.56s windows at 50Hz -- matches the sampling size of the HAR_CoT dataset already in the OpenTSLM datasets)
 python -m opentslm.time_series_datasets.capture24.capture24_windows
 
 # 10s windows downsampled to 25Hz with parallel processing

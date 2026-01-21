@@ -6,6 +6,7 @@
 import argparse
 import gzip
 import os
+import urllib.request
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -26,11 +27,31 @@ from opentslm.time_series_datasets.constants import RAW_DATA as RAW_DATA_PATH
 
 CAPTURE24_ZIP_PATH = os.path.join(RAW_DATA_PATH, "capture24.zip")
 CAPTURE24_DATA_DIR = os.path.join(RAW_DATA_PATH, "capture24")
+CAPTURE24_DOWNLOAD_URL = (
+    "https://ora.ox.ac.uk/objects/uuid:99d7c092-d865-4a19-b096-cc16440cd001"
+    "/download_file?file_format=&safe_filename=capture24.zip&type_of_work=Dataset"
+)
 
 
 # ---------------------------
 # Helper Functions
 # ---------------------------
+
+def download_capture24_zip() -> None:
+    """Download the Capture-24 dataset ZIP file (~6.9GB)."""
+    os.makedirs(os.path.dirname(CAPTURE24_ZIP_PATH), exist_ok=True)
+    print(f"Downloading capture24.zip (~6.9GB) to {CAPTURE24_ZIP_PATH}...")
+    print("This may take a while...")
+
+    with tqdm(total=6.9e9, unit="B", unit_scale=True, unit_divisor=1024,
+              miniters=1, desc="Downloading capture24.zip") as pbar:
+        urllib.request.urlretrieve(
+            CAPTURE24_DOWNLOAD_URL,
+            filename=CAPTURE24_ZIP_PATH,
+            reporthook=lambda b, bsize, tsize: pbar.update(bsize)
+        )
+    print(f"Download complete: {CAPTURE24_ZIP_PATH}")
+
 
 def get_sensor_data_dir(downsample_hz: int = 100) -> str:
     """
@@ -170,10 +191,8 @@ def extract_and_convert_to_parquet(
             └── ...
     """
     if not os.path.exists(CAPTURE24_ZIP_PATH):
-        raise FileNotFoundError(
-            f"Capture-24 ZIP not found at {CAPTURE24_ZIP_PATH}. "
-            "Please download the dataset and place it at this location."
-        )
+        print(f"Capture-24 ZIP not found at {CAPTURE24_ZIP_PATH}, downloading...")
+        download_capture24_zip()
 
     os.makedirs(CAPTURE24_DATA_DIR, exist_ok=True)
     sensor_data_dir = get_sensor_data_dir(downsample_hz)
