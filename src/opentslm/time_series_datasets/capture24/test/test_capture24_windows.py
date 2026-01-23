@@ -115,7 +115,6 @@ def extract_windows_step(
     downsample_hz: int,
     annotation_threshold: float,
     seed: int,
-    n_jobs: int,
     max_participants: int,
 ) -> None:
     """Extract windows with given parameters."""
@@ -129,7 +128,6 @@ def extract_windows_step(
         downsample_hz=downsample_hz,
         annotation_threshold=annotation_threshold,
         seed=seed,
-        n_jobs=n_jobs,
         max_participants=max_participants,
         overwrite=True
     )
@@ -159,7 +157,6 @@ def run_full_verification(args) -> None:
         downsample_hz=args.downsample_hz,
         annotation_threshold=args.annotation_threshold,
         seed=args.seed,
-        n_jobs=args.n_jobs,
         max_participants=args.max_participants,
     )
 
@@ -181,7 +178,6 @@ def run_full_verification(args) -> None:
             downsample_hz=downsample_target_hz,
             annotation_threshold=0.8,
             seed=args.seed,
-            n_jobs=args.n_jobs,
             max_participants=max(1, args.max_participants - 1) if args.max_participants else None,
         )
 
@@ -309,12 +305,6 @@ Examples:
         type=int,
         default=None,
         help="Target sampling frequency for downsampling (full mode, default: None)"
-    )
-    parser.add_argument(
-        "--n-jobs", "-j",
-        type=int,
-        default=1,
-        help="Number of parallel jobs (full mode, default: 1)"
     )
     parser.add_argument(
         "--max-participants", "-n",

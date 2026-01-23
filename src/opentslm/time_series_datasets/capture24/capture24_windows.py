@@ -12,7 +12,6 @@ import numpy as np
 import polars as pl
 import pyarrow as pa
 import pyarrow.parquet as pq
-from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from opentslm.time_series_datasets.capture24.capture24_loader import (
@@ -266,7 +265,6 @@ def extract_windows(
     seed: int = 42,
     train_ratio: float = 0.7,
     val_ratio: float = 0.15,
-    n_jobs: int = 1,
     max_participants: Optional[int] = None,
     overwrite: bool = False
 ) -> None:
@@ -281,7 +279,6 @@ def extract_windows(
         seed: Random seed for participant split (default: 42)
         train_ratio: Fraction of participants for training (default: 0.7)
         val_ratio: Fraction of participants for validation (default: 0.15)
-        n_jobs: Number of parallel jobs (default: 1)
         max_participants: Optional limit on number of participants (for testing)
         overwrite: Force re-extraction even if windows exist (default: False)
 
@@ -353,9 +350,9 @@ def extract_windows(
     for split_name, pids in [("train", train_pids), ("val", val_pids), ("test", test_pids)]:
         print(f"\nProcessing {split_name} split ({len(pids)} participants)...")
 
-        # Extract windows for all participants in parallel
-        all_windows = Parallel(n_jobs=n_jobs)(
-            delayed(extract_participant_windows)(
+        # Extract windows for all participants
+        all_windows = [
+            extract_participant_windows(
                 pid,
                 window_size_s,
                 source_hz,
@@ -363,7 +360,7 @@ def extract_windows(
                 annotation_threshold
             )
             for pid in tqdm(pids, desc=f"  {split_name}")
-        )
+        ]
 
         # Combine all windows
         if all_windows:
@@ -472,12 +469,6 @@ if __name__ == "__main__":
         help='Fraction of participants for validation (default: 0.15)'
     )
     parser.add_argument(
-        '--n-jobs', '-j',
-        type=int,
-        default=1,
-        help='Number of parallel jobs (default: 1)'
-    )
-    parser.add_argument(
         '--max-participants', '-n',
         type=int,
         default=None,
@@ -507,9 +498,6 @@ if __name__ == "__main__":
     if args.max_participants is not None:
         print(f"Limiting to {args.max_participants} participants (testing mode)")
 
-    if args.n_jobs > 1:
-        print(f"Using {args.n_jobs} parallel jobs")
-
     print()
 
     # Extract windows
@@ -521,7 +509,6 @@ if __name__ == "__main__":
         seed=args.seed,
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,
-        n_jobs=args.n_jobs,
         max_participants=args.max_participants,
         overwrite=args.overwrite
     )

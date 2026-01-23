@@ -70,8 +70,7 @@ python -m opentslm.time_series_datasets.capture24.capture24_windows
 python -m opentslm.time_series_datasets.capture24.capture24_windows \
     --window-size-s 10 \
     --source-hz 100 \
-    --downsample-hz 25 \
-    --n-jobs 4
+    --downsample-hz 25
 
 # Custom train/val/test split ratios
 python -m opentslm.time_series_datasets.capture24.capture24_windows \
