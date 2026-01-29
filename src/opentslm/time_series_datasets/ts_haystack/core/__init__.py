@@ -4,23 +4,30 @@
 """
 Core infrastructure for TS-Haystack benchmark.
 
-This module provides the foundational components:
 - Data structures for timelines, bouts, and indices
 - Seed management for reproducibility
 - Timeline building from Capture-24 data
 - Cross-participant bout indexing
 - Activity transition matrix
+
+- Background sampling using bout index
+- Needle sampling with duration filtering
+- Style transfer (covariance projection + boundary blending)
+- Prompt template bank for NL diversity
 """
 
 from opentslm.time_series_datasets.ts_haystack.core.data_structures import (
     ActivityStats,
+    BackgroundSample,
     BoutIndex,
     BoutRecord,
     BoutRef,
     DifficultyConfig,
     GeneratedSample,
     InsertedNeedle,
+    NeedleSample,
     ParticipantTimeline,
+    SignalStatistics,
     TaskConfig,
 )
 from opentslm.time_series_datasets.ts_haystack.core.seed_manager import (
@@ -40,6 +47,19 @@ from opentslm.time_series_datasets.ts_haystack.core.transition_matrix import (
     TransitionMatrix,
     get_transition_matrix_path,
 )
+from opentslm.time_series_datasets.ts_haystack.core.background_sampler import (
+    BackgroundSampler,
+)
+from opentslm.time_series_datasets.ts_haystack.core.needle_sampler import (
+    NeedleSampler,
+)
+from opentslm.time_series_datasets.ts_haystack.core.style_transfer import (
+    StyleTransfer,
+)
+from opentslm.time_series_datasets.ts_haystack.core.prompt_templates import (
+    PromptTemplateBank,
+    TemplateVariant,
+)
 
 __all__ = [
     # Data structures
@@ -52,6 +72,10 @@ __all__ = [
     "TaskConfig",
     "InsertedNeedle",
     "GeneratedSample",
+    # Phase 2: Sampling structures
+    "SignalStatistics",
+    "NeedleSample",
+    "BackgroundSample",
     # Seed management
     "SeedManager",
     "ReproducibilityConfig",
@@ -65,4 +89,10 @@ __all__ = [
     # Transition matrix
     "TransitionMatrix",
     "get_transition_matrix_path",
+    # Phase 2: Samplers
+    "BackgroundSampler",
+    "NeedleSampler",
+    "StyleTransfer",
+    "PromptTemplateBank",
+    "TemplateVariant",
 ]

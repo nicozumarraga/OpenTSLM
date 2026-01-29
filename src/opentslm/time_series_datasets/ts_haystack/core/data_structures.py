@@ -513,3 +513,228 @@ class GeneratedSample:
             "is_valid": self.is_valid,
             "validation_notes": self.validation_notes,
         }
+
+
+# =============================================================================
+# Sampling Structures (Phase 2)
+# =============================================================================
+
+
+@dataclass
+class SignalStatistics:
+    """
+    Statistics for style transfer computation.
+
+    Used to match the statistical properties of a needle signal to a target context.
+
+    Attributes:
+        mean: Per-axis mean values, shape (3,)
+        std: Per-axis standard deviations, shape (3,)
+        cov: Covariance matrix, shape (3, 3)
+        cholesky: Cholesky decomposition of covariance, shape (3, 3)
+    """
+
+    mean: np.ndarray
+    std: np.ndarray
+    cov: np.ndarray
+    cholesky: np.ndarray
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "mean": self.mean.tolist(),
+            "std": self.std.tolist(),
+            "cov": self.cov.tolist(),
+            "cholesky": self.cholesky.tolist(),
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "SignalStatistics":
+        """Create from dictionary."""
+        return cls(
+            mean=np.array(d["mean"]),
+            std=np.array(d["std"]),
+            cov=np.array(d["cov"]),
+            cholesky=np.array(d["cholesky"]),
+        )
+
+
+@dataclass
+class NeedleSample:
+    """
+    A sampled needle bout with sensor data.
+
+    Contains the actual accelerometer data extracted from a bout,
+    ready for style transfer and insertion into a background.
+
+    Attributes:
+        source_pid: Participant ID where this needle was sampled from
+        activity: Activity label of the needle
+        start_ms: Original start timestamp in source recording
+        end_ms: Original end timestamp in source recording
+        duration_ms: Duration in milliseconds
+        x: X-axis accelerometer data
+        y: Y-axis accelerometer data
+        z: Z-axis accelerometer data
+    """
+
+    source_pid: str
+    activity: str
+    start_ms: int
+    end_ms: int
+    duration_ms: int
+    x: np.ndarray
+    y: np.ndarray
+    z: np.ndarray
+
+    @property
+    def n_samples(self) -> int:
+        """Number of samples in the needle."""
+        return len(self.x)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "source_pid": self.source_pid,
+            "activity": self.activity,
+            "start_ms": self.start_ms,
+            "end_ms": self.end_ms,
+            "duration_ms": self.duration_ms,
+            "x": self.x.tolist(),
+            "y": self.y.tolist(),
+            "z": self.z.tolist(),
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "NeedleSample":
+        """Create from dictionary."""
+        return cls(
+            source_pid=d["source_pid"],
+            activity=d["activity"],
+            start_ms=d["start_ms"],
+            end_ms=d["end_ms"],
+            duration_ms=d["duration_ms"],
+            x=np.array(d["x"]),
+            y=np.array(d["y"]),
+            z=np.array(d["z"]),
+        )
+
+    def trim(self, n_samples: int) -> "NeedleSample":
+        """
+        Return a new NeedleSample trimmed to the specified number of samples.
+
+        Trims from the center of the needle to preserve the most characteristic signal.
+        """
+        if n_samples >= self.n_samples:
+            return self
+
+        # Trim from center
+        start_idx = (self.n_samples - n_samples) // 2
+        end_idx = start_idx + n_samples
+
+        # Compute new timestamps
+        sample_duration_ms = self.duration_ms / self.n_samples
+        new_start_ms = self.start_ms + int(start_idx * sample_duration_ms)
+        new_end_ms = self.start_ms + int(end_idx * sample_duration_ms)
+
+        return NeedleSample(
+            source_pid=self.source_pid,
+            activity=self.activity,
+            start_ms=new_start_ms,
+            end_ms=new_end_ms,
+            duration_ms=new_end_ms - new_start_ms,
+            x=self.x[start_idx:end_idx].copy(),
+            y=self.y[start_idx:end_idx].copy(),
+            z=self.z[start_idx:end_idx].copy(),
+        )
+
+
+@dataclass
+class BackgroundSample:
+    """
+    A sampled background window with sensor data.
+
+    Contains the accelerometer data for a contiguous time window,
+    along with metadata about the activities present in the window.
+
+    Attributes:
+        pid: Participant ID
+        start_ms: Start timestamp in milliseconds (Unix epoch)
+        end_ms: End timestamp in milliseconds (Unix epoch)
+        duration_ms: Duration in milliseconds
+        x: X-axis accelerometer data
+        y: Y-axis accelerometer data
+        z: Z-axis accelerometer data
+        activities_present: Set of unique activities in this window
+        activity_timeline: List of (start_frac, end_frac, activity) tuples
+                          describing the activity composition within the window
+        recording_time_context: Human-readable time range tuple (start_time, end_time)
+                               e.g., ("6:00 AM", "8:00 AM")
+    """
+
+    pid: str
+    start_ms: int
+    end_ms: int
+    duration_ms: int
+    x: np.ndarray
+    y: np.ndarray
+    z: np.ndarray
+    activities_present: Set[str]
+    activity_timeline: List[Tuple[float, float, str]]
+    recording_time_context: Tuple[str, str]
+
+    @property
+    def n_samples(self) -> int:
+        """Number of samples in the background."""
+        return len(self.x)
+
+    @property
+    def is_pure(self) -> bool:
+        """Return True if background contains only one activity."""
+        return len(self.activities_present) == 1
+
+    def get_activity_at_position(self, position_frac: float) -> Optional[str]:
+        """
+        Get the activity at a given fractional position in the window.
+
+        Args:
+            position_frac: Position as fraction of window (0.0 to 1.0)
+
+        Returns:
+            Activity label at that position, or None if not found
+        """
+        for start_frac, end_frac, activity in self.activity_timeline:
+            if start_frac <= position_frac < end_frac:
+                return activity
+        return None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "pid": self.pid,
+            "start_ms": self.start_ms,
+            "end_ms": self.end_ms,
+            "duration_ms": self.duration_ms,
+            "x": self.x.tolist(),
+            "y": self.y.tolist(),
+            "z": self.z.tolist(),
+            "activities_present": list(self.activities_present),
+            "activity_timeline": self.activity_timeline,
+            "recording_time_context": list(self.recording_time_context),
+        }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "BackgroundSample":
+        """Create from dictionary."""
+        return cls(
+            pid=d["pid"],
+            start_ms=d["start_ms"],
+            end_ms=d["end_ms"],
+            duration_ms=d["duration_ms"],
+            x=np.array(d["x"]),
+            y=np.array(d["y"]),
+            z=np.array(d["z"]),
+            activities_present=set(d["activities_present"]),
+            activity_timeline=[tuple(t) for t in d["activity_timeline"]],
+            recording_time_context=tuple(d["recording_time_context"]),
+        )

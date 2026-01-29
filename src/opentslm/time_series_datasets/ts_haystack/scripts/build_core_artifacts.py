@@ -10,10 +10,10 @@ This script orchestrates the generation of:
 3. Activity transition matrix
 
 Usage:
-    python -m opentslm.time_series_datasets.ts_haystack.scripts.build_phase1_artifacts
+    python -m opentslm.time_series_datasets.ts_haystack.scripts.build_core_artifacts
 
     # With options
-    python -m opentslm.time_series_datasets.ts_haystack.scripts.build_phase1_artifacts \
+    python -m opentslm.time_series_datasets.ts_haystack.scripts.build_core_artifacts \
         --n-jobs 8 \
         --label-scheme WillettsSpecific2018 \
         --min-bout-duration-ms 100
