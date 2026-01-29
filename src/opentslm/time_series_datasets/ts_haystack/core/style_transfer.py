@@ -4,9 +4,22 @@
 """
 Style transfer for TS-Haystack.
 
-This module provides covariance projection (linear style transfer) to make
-needle signals blend naturally with target background contexts, plus
-boundary blending for smooth insertion.
+This module provides style transfer options to make needle signals blend
+naturally with target background contexts:
+
+- "mean_only" (default): Only shifts the needle's mean to match the target.
+  Preserves the activity's characteristic amplitude/variance. This is the
+  recommended mode as it adjusts for participant-specific sensor biases
+  (orientation, placement) without erasing the activity signature.
+
+- "full": Full covariance projection that matches mean, variance, and
+  covariance structure. WARNING: This can dramatically compress high-activity
+  needles when inserted into low-activity backgrounds, making them undetectable.
+
+  Note: This mean only blending has been iterated based on visual interpretation of samples.
+        The style_transfer should be evaluated and interated based on expert knowledge and experiments performance.
+
+Also provides boundary blending for smooth needle insertion.
 """
 
 from typing import Literal, Tuple
@@ -21,21 +34,25 @@ from opentslm.time_series_datasets.ts_haystack.core.data_structures import (
 
 class StyleTransfer:
     """
-    Applies covariance projection (linear style transfer) to transform
-    needle signals to match target context statistics.
+    Applies style transfer to help needle signals blend with target contexts.
 
-    Mathematical formulation:
-        1. Normalize needle: x_norm = (x - μ_needle) / σ_needle
-        2. Project through covariance: x_proj = L_target @ L_needle^{-1} @ x_norm
-        3. Denormalize: x_final = x_proj * σ_target + μ_target
+    Transfer Modes:
+        - "mean_only": Shifts needle mean to match target mean. Preserves the
+          activity's characteristic variance and temporal patterns. Recommended
+          for TS-Haystack as it maintains activity detectability.
 
-    Where L is the Cholesky decomposition of the covariance matrix.
+        - "full": Full covariance projection (linear style transfer):
+            1. Normalize needle: x_norm = (x - μ_needle) / σ_needle
+            2. Project through covariance: x_proj = L_target @ L_needle^{-1} @ x_norm
+            3. Denormalize: x_final = x_proj * σ_target + μ_target
+          WARNING: Can compress activity signals to be undetectable.
 
-    Also provides boundary blending for smooth needle insertion.
+    Also provides boundary blending (linear or cosine) for smooth insertion.
 
     Example:
-        >>> style_transfer = StyleTransfer(blend_mode="cosine", blend_window_samples=50)
-        >>> target_stats = style_transfer.compute_statistics(bg_x, bg_y, bg_z)
+        >>> # Mean-only transfer (recommended)
+        >>> style_transfer = StyleTransfer(transfer_mode="mean_only")
+        >>> target_stats = style_transfer.compute_local_statistics(background, position)
         >>> transferred = style_transfer.transfer(needle, target_stats)
         >>> x, y, z = style_transfer.insert_with_blending(
         ...     background=(bg_x, bg_y, bg_z),
@@ -46,6 +63,7 @@ class StyleTransfer:
 
     def __init__(
         self,
+        transfer_mode: Literal["mean_only", "full"] = "mean_only",
         blend_mode: Literal["linear", "cosine"] = "cosine",
         blend_window_samples: int = 50,
     ):
@@ -53,9 +71,13 @@ class StyleTransfer:
         Initialize style transfer.
 
         Args:
+            transfer_mode: Statistics transfer mode:
+                - "mean_only": Only shift mean (preserves activity amplitude)
+                - "full": Full covariance projection (can compress signals)
             blend_mode: Blending function for boundaries ("linear" or "cosine")
             blend_window_samples: Number of samples for boundary blending (~0.5s at 100Hz)
         """
+        self.transfer_mode = transfer_mode
         self.blend_mode = blend_mode
         self.blend_window_samples = blend_window_samples
 
@@ -107,7 +129,11 @@ class StyleTransfer:
         target_stats: SignalStatistics,
     ) -> NeedleSample:
         """
-        Apply covariance projection to transform needle to target style.
+        Apply style transfer to transform needle to match target context.
+
+        The transfer mode determines how much of the statistics are matched:
+        - "mean_only": Only shifts the mean, preserving activity amplitude
+        - "full": Full covariance projection (can compress signals)
 
         Args:
             needle: Source needle sample
@@ -115,6 +141,83 @@ class StyleTransfer:
 
         Returns:
             New NeedleSample with transformed sensor data
+        """
+        if self.transfer_mode == "mean_only":
+            return self._transfer_mean_only(needle, target_stats)
+        elif self.transfer_mode == "full":
+            return self._transfer_full(needle, target_stats)
+        else:
+            raise ValueError(f"Unknown transfer mode: {self.transfer_mode}")
+
+    def _transfer_mean_only(
+        self,
+        needle: NeedleSample,
+        target_stats: SignalStatistics,
+    ) -> NeedleSample:
+        """
+        Apply mean-only transfer: shift needle mean to match target mean.
+
+        This preserves the activity's characteristic amplitude and temporal
+        patterns while adjusting for participant-specific sensor biases
+        (orientation, placement, calibration).
+
+        Mathematical formulation:
+            x_transferred = x_needle - μ_needle + μ_target
+
+        Args:
+            needle: Source needle sample
+            target_stats: Target context statistics
+
+        Returns:
+            New NeedleSample with mean-shifted sensor data
+        """
+        # Compute needle mean
+        needle_mean = np.array([
+            np.mean(needle.x),
+            np.mean(needle.y),
+            np.mean(needle.z),
+        ])
+
+        # Shift needle to target mean
+        # x_new = x - μ_needle + μ_target
+        x_transferred = needle.x - needle_mean[0] + target_stats.mean[0]
+        y_transferred = needle.y - needle_mean[1] + target_stats.mean[1]
+        z_transferred = needle.z - needle_mean[2] + target_stats.mean[2]
+
+        return NeedleSample(
+            source_pid=needle.source_pid,
+            activity=needle.activity,
+            start_ms=needle.start_ms,
+            end_ms=needle.end_ms,
+            duration_ms=needle.duration_ms,
+            x=x_transferred.astype(np.float32),
+            y=y_transferred.astype(np.float32),
+            z=z_transferred.astype(np.float32),
+        )
+
+    def _transfer_full(
+        self,
+        needle: NeedleSample,
+        target_stats: SignalStatistics,
+    ) -> NeedleSample:
+        """
+        Apply full covariance projection to transform needle to target style.
+
+        WARNING: This can dramatically compress high-activity needles when
+        inserted into low-activity backgrounds, making them undetectable.
+        Use "mean_only" mode for most TS-Haystack tasks.
+
+        Mathematical formulation:
+            1. Normalize needle: x_norm = (x - μ_needle) / σ_needle
+            2. Project through covariance: x_proj = L_target @ L_needle^{-1} @ x_norm
+            3. Denormalize: x_final = x_proj * σ_target + μ_target
+
+        Args:
+            needle: Source needle sample
+            target_stats: Target context statistics
+
+        Returns:
+            New NeedleSample with fully transformed sensor data
         """
         # Compute needle statistics
         needle_stats = self.compute_statistics(needle.x, needle.y, needle.z)
@@ -131,7 +234,6 @@ class StyleTransfer:
             projected = transform @ normalized
         except np.linalg.LinAlgError:
             # Fall back to simple scaling if matrix inversion fails
-            print(f"❌ Matrix inversion failed, fallback to simple scaling")
             projected = normalized
 
         # Denormalize with target statistics: x * σ + μ
