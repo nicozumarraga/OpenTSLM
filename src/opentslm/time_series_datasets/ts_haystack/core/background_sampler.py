@@ -455,17 +455,24 @@ class BackgroundSampler:
         """
         Convert Unix timestamps to human-readable time strings.
 
-        Returns tuple of (start_time, end_time) like ("6:00 AM", "8:00 AM").
+        Returns tuple of (start_time, end_time) with full precision including
+        seconds and milliseconds for distinguishable timestamps even with
+        short needle durations.
+
+        Example: ("6:00:00.000 AM", "6:01:40.500 AM")
         """
         start_dt = datetime.fromtimestamp(start_ms / 1000)
         end_dt = datetime.fromtimestamp(end_ms / 1000)
 
-        # Format as time only (the date is not relevant for the benchmark)
-        # Use %I for 12-hour, %H for 24-hour
-        start_str = start_dt.strftime("%I:%M %p").lstrip("0")
-        end_str = end_dt.strftime("%I:%M %p").lstrip("0")
+        def format_dt(dt: datetime) -> str:
+            """Format datetime with seconds and milliseconds."""
+            base = dt.strftime("%I:%M:%S")
+            ms = dt.microsecond // 1000
+            am_pm = dt.strftime("%p")
+            result = f"{base}.{ms:03d} {am_pm}"
+            return result.lstrip("0") or "0" + result[1:]
 
-        return start_str, end_str
+        return format_dt(start_dt), format_dt(end_dt)
 
     def clear_cache(self) -> None:
         """Clear the sensor data cache to free memory."""

@@ -22,3 +22,8 @@ dist/
 *.license
 
 *.log
+
+
+# Model checkpoints and results
+evaluation/results/*/*.json*
+checkpoints/

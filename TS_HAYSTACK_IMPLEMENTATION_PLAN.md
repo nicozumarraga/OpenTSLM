@@ -48,7 +48,7 @@ The TS-Haystack benchmark builds on the existing Capture-24 classification pipel
 │  Phase 1: Timeline & Index Building                                         │
 │  ┌─────────────────────┐    ┌─────────────────────┐    ┌──────────────────┐│
 │  │  timeline_builder   │───▶│   bout_indexer      │───▶│ transition_matrix││
-│  │  (per-participant)  │    │   (cross-participant)│    │ (global stats)   ││
+│  │  (per-participant)  │    │  (cross-participant)│    │ (global stats)   ││
 │  └─────────────────────┘    └─────────────────────┘    └──────────────────┘│
 │           │                          │                          │           │
 │           ▼                          ▼                          ▼           │

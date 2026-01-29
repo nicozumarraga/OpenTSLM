@@ -4,28 +4,57 @@
 """
 TS-Haystack: A semi-synthetic benchmark for testing retrieval and reasoning
 over long time series (1K-1M+ datapoints) using Capture-24 accelerometer data.
+
+Modules:
+- core: Core infrastructure (data structures, samplers, style transfer)
+- tasks: Task generators (existence, localization, counting, ordering, etc.)
+- utils: Utility functions (timestamp conversion, position sampling)
 """
 
+# =============================================================================
+# Core Infrastructure
+# =============================================================================
 from opentslm.time_series_datasets.ts_haystack.core import (
     # Data structures
     ActivityStats,
+    BackgroundSample,
     BoutIndex,
     BoutRecord,
     BoutRef,
     DifficultyConfig,
     GeneratedSample,
     InsertedNeedle,
+    NeedleSample,
     ParticipantTimeline,
+    SignalStatistics,
     TaskConfig,
     # Seed management
     ReproducibilityConfig,
     SeedManager,
-    # Timeline builder
+    # Phase 1: Timeline & Index builders
     TimelineBuilder,
-    # Bout indexer
     BoutIndexer,
-    # Transition matrix
     TransitionMatrix,
+
+    BackgroundSampler,
+    NeedleSampler,
+    StyleTransfer,
+    PromptTemplateBank,
+    TemplateVariant,
+)
+
+# =============================================================================
+# Task Generators
+# =============================================================================
+from opentslm.time_series_datasets.ts_haystack.tasks import (
+    BaseTaskGenerator,
+    ExistenceTaskGenerator,
+    LocalizationTaskGenerator,
+    CountingTaskGenerator,
+    OrderingTaskGenerator,
+    TASK_REGISTRY,
+    get_task_generator,
+    list_available_tasks,
 )
 
 __all__ = [
@@ -39,11 +68,29 @@ __all__ = [
     "TaskConfig",
     "InsertedNeedle",
     "GeneratedSample",
+    "SignalStatistics",
+    "NeedleSample",
+    "BackgroundSample",
     # Seed management
     "SeedManager",
     "ReproducibilityConfig",
-    # Core components
+    # Phase 1: Core builders
     "TimelineBuilder",
     "BoutIndexer",
     "TransitionMatrix",
+    # Phase 2: Samplers & Style Transfer
+    "BackgroundSampler",
+    "NeedleSampler",
+    "StyleTransfer",
+    "PromptTemplateBank",
+    "TemplateVariant",
+    # Phase 3: Task Generators
+    "BaseTaskGenerator",
+    "ExistenceTaskGenerator",
+    "LocalizationTaskGenerator",
+    "CountingTaskGenerator",
+    "OrderingTaskGenerator",
+    "TASK_REGISTRY",
+    "get_task_generator",
+    "list_available_tasks",
 ]
