@@ -5,6 +5,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 from opentslm.model_config import TRANSFORMER_INPUT_DIM, ENCODER_OUTPUT_DIM, PATCH_SIZE
@@ -22,6 +23,7 @@ class TransformerCNNEncoder(TimeSeriesEncoderBase):
         patch_size: int = PATCH_SIZE,
         ff_dim: int = 1024,
         max_patches: int = 1024,
+        trained_patches: int = 32,  # Number of patches seen during training (2.56s @ 50Hz / 4)
     ):
         """
         Args:
@@ -35,6 +37,7 @@ class TransformerCNNEncoder(TimeSeriesEncoderBase):
         """
         super().__init__(output_dim, dropout)
         self.patch_size = patch_size
+        self.trained_patches = trained_patches  # For position interpolation
 
         # 1) Conv1d patch embedding: (B, 1, L) -> (B, embed_dim, L/patch_size)
         self.patch_embed = nn.Conv1d(
@@ -88,13 +91,24 @@ class TransformerCNNEncoder(TimeSeriesEncoderBase):
         # transpose to (B, N, embed_dim)
         x = x.transpose(1, 2)
 
-        # add positional embeddings (truncate or expand as needed)
+        # add positional embeddings with linear interpolation for longer sequences
         N = x.size(1)
-        if N > self.pos_embed.size(1):
-            raise ValueError(
-                f"Time series of length {N*4} is too long; max supported is {self.pos_embed.size(1)*4}. Change max_patches parameter in {__file__}"
-            )
-        pos = self.pos_embed[:, :N, :]
+
+        if N <= self.trained_patches:
+            # Use learned positions directly (within training range)
+            pos = self.pos_embed[:, :N, :]
+        else:
+            # Interpolate from trained positions to cover longer sequences
+            print(f"Patches ({N}) > trained ({self.trained_patches}). Interpolating pos embeddings.")
+            # Only use the trained portion of pos_embed for interpolation
+            trained_pos = self.pos_embed[:, :self.trained_patches, :]  # (1, trained_patches, dim)
+            # Shape: (1, trained_patches, dim) -> (1, dim, trained_patches) for interpolation
+            pos_embed_t = trained_pos.transpose(1, 2)
+            # Interpolate to target length
+            pos_interp = F.interpolate(pos_embed_t, size=N, mode='linear', align_corners=True)
+            # Back to (1, N, dim)
+            pos = pos_interp.transpose(1, 2)
+
         x = x + pos
 
         # norm + dropout

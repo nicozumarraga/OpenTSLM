@@ -43,11 +43,12 @@ class OpenTSLMFlamingo(TimeSeriesLLM):
         cross_attn_every_n_layers: int = 1,
         decoder_layers_attr_name: str = None,
         freeze_lm_embeddings: bool = False,
+        max_patches: int = 50000,
         **flamingo_kwargs,
     ):
         super().__init__(device)
         print(f"Flamingo Using device: {self.device}")
-        time_series_encoder = CNNTokenizer().to(device)
+        time_series_encoder = CNNTokenizer(max_patches=max_patches).to(device)
 
         text_tokenizer = AutoTokenizer.from_pretrained(
             llm_id,
@@ -361,6 +362,26 @@ class OpenTSLMFlamingo(TimeSeriesLLM):
 
         if prefix_removed_count > 0:
             print(f"ℹ️  Removed prefix from {prefix_removed_count} checkpoint keys")
+
+        # Handle pos_embed interpolation for different max_patches sizes
+        # This allows loading checkpoints trained with smaller max_patches into models
+        # configured for longer sequences
+        pos_embed_key = "vision_encoder.pos_embed"
+        if pos_embed_key in model_state:
+            checkpoint_pos_embed = model_state[pos_embed_key]
+            model_pos_embed = self.model.vision_encoder.pos_embed
+
+            if checkpoint_pos_embed.shape != model_pos_embed.shape:
+                print(f"ℹ️  Interpolating pos_embed: {checkpoint_pos_embed.shape} → {model_pos_embed.shape}")
+                # Interpolate: (1, src_patches, dim) -> (1, tgt_patches, dim)
+                # Transpose to (1, dim, src_patches) for F.interpolate
+                pos_embed_t = checkpoint_pos_embed.transpose(1, 2)
+                target_patches = model_pos_embed.shape[1]
+                pos_interp = torch.nn.functional.interpolate(
+                    pos_embed_t, size=target_patches, mode='linear', align_corners=True
+                )
+                # Back to (1, tgt_patches, dim)
+                model_state[pos_embed_key] = pos_interp.transpose(1, 2)
 
         # Load state dict with strict=False to handle missing/unexpected keys
         # The checkpoint contains state for self.model (the Flamingo model), not self
