@@ -35,6 +35,7 @@ from .capture24_qa_loader import (
     load_capture24_classification_splits,
 )
 from .Capture24AccQADataset import Capture24AccQADataset
+from .Capture24EvalQADataset import Capture24EvalQADataset, load_all_eval_datasets
 
 __all__ = [
     # Loader
@@ -65,4 +66,7 @@ __all__ = [
     "load_capture24_classification_splits",
     "get_label_list",
     "Capture24AccQADataset",
+    # Evaluation Dataset
+    "Capture24EvalQADataset",
+    "load_all_eval_datasets",
 ]
