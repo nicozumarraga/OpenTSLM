@@ -334,7 +334,7 @@ class BoutIndexer:
             activity: Target activity type
             min_duration_ms: Minimum bout duration
             max_duration_ms: Maximum bout duration (optional)
-            exclude_pids: Participants to exclude (e.g., background participant)
+            exclude_pids: Participants to exclude (optional, not typically needed)
             rng: Random generator for reproducibility
 
         Returns:
@@ -1363,7 +1363,7 @@ class LocalizationTaskGenerator(BaseTaskGenerator):
             activity=target_activity,
             min_duration_ms=difficulty.needle_length_range_ms[0],
             max_duration_ms=difficulty.needle_length_range_ms[1],
-            exclude_pids={background.pid},  # Different participant for style diversity
+            exclude_pids=None,  # Same-participant sampling is allowed
             rng=self.rng,
         )
 
@@ -1500,7 +1500,7 @@ class CountingTaskGenerator(BaseTaskGenerator):
                 activity=target_activity,
                 min_duration_ms=needle_duration_ms,
                 max_duration_ms=needle_duration_ms + 5000,  # Allow some slack
-                exclude_pids={background.pid},
+                exclude_pids=None,  # Same-participant sampling is allowed
                 rng=rng,
             )
 
@@ -1686,7 +1686,7 @@ class OrderingTaskGenerator(BaseTaskGenerator):
             activity=activity_A,
             min_duration_ms=difficulty.needle_length_range_ms[0],
             max_duration_ms=difficulty.needle_length_range_ms[1],
-            exclude_pids={background.pid},
+            exclude_pids=None,  # Same-participant sampling is allowed
             rng=rng,
         )
 
@@ -1694,7 +1694,7 @@ class OrderingTaskGenerator(BaseTaskGenerator):
             activity=activity_B,
             min_duration_ms=difficulty.needle_length_range_ms[0],
             max_duration_ms=difficulty.needle_length_range_ms[1],
-            exclude_pids={background.pid},
+            exclude_pids=None,  # Same-participant sampling is allowed
             rng=rng,
         )
 
@@ -1897,7 +1897,7 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
             activity=needle_activity,
             min_duration_ms=difficulty.needle_length_range_ms[0],
             max_duration_ms=difficulty.needle_length_range_ms[1],
-            exclude_pids={background.pid},
+            exclude_pids=None,  # Same-participant sampling is allowed
             rng=rng,
         )
 
@@ -2075,7 +2075,7 @@ class AntecedentTaskGenerator(BaseTaskGenerator):
             activity=antecedent_activity,
             min_duration_ms=difficulty.needle_length_range_ms[0],
             max_duration_ms=difficulty.needle_length_range_ms[1],
-            exclude_pids={background.pid},
+            exclude_pids=None,  # Same-participant sampling is allowed
             rng=rng,
         )
 
@@ -2084,7 +2084,7 @@ class AntecedentTaskGenerator(BaseTaskGenerator):
             activity=target_activity,
             min_duration_ms=difficulty.needle_length_range_ms[0],
             max_duration_ms=difficulty.needle_length_range_ms[1],
-            exclude_pids={background.pid},
+            exclude_pids=None,  # Same-participant sampling is allowed
             rng=rng,
         )
 
@@ -2282,7 +2282,7 @@ class ComparisonTaskGenerator(BaseTaskGenerator):
                 activity=target_activity,
                 min_duration_ms=duration_ms,
                 max_duration_ms=duration_ms + 5000,
-                exclude_pids={background.pid},
+                exclude_pids=None,  # Same-participant sampling is allowed
                 rng=rng,
             )
 
@@ -2515,7 +2515,7 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
             activity=anchor_activity,
             min_duration_ms=difficulty.needle_length_range_ms[0],
             max_duration_ms=difficulty.needle_length_range_ms[1],
-            exclude_pids={background.pid},
+            exclude_pids=None,  # Same-participant sampling is allowed
             rng=rng,
         )
 
@@ -2571,7 +2571,7 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
                     activity=target_activity,
                     min_duration_ms=difficulty.needle_length_range_ms[0],
                     max_duration_ms=difficulty.needle_length_range_ms[1],
-                    exclude_pids={background.pid},
+                    exclude_pids=None,  # Same-participant sampling is allowed
                     rng=rng,
                 )
                 if target_needle is None:
@@ -2594,7 +2594,7 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
                     activity=target_activity,
                     min_duration_ms=difficulty.needle_length_range_ms[0],
                     max_duration_ms=difficulty.needle_length_range_ms[1],
-                    exclude_pids={background.pid},
+                    exclude_pids=None,  # Same-participant sampling is allowed
                     rng=rng,
                 )
                 if target_needle is None:
@@ -2624,7 +2624,7 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
                         activity=target_activity,
                         min_duration_ms=difficulty.needle_length_range_ms[0],
                         max_duration_ms=difficulty.needle_length_range_ms[1],
-                        exclude_pids={background.pid},
+                        exclude_pids=None,  # Same-participant sampling is allowed
                         rng=rng,
                     )
                     if d_needle:
@@ -2641,7 +2641,7 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
                         activity=target_activity,
                         min_duration_ms=difficulty.needle_length_range_ms[0],
                         max_duration_ms=difficulty.needle_length_range_ms[1],
-                        exclude_pids={background.pid},
+                        exclude_pids=None,  # Same-participant sampling is allowed
                         rng=rng,
                     )
                     if d_needle:

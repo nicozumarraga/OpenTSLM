@@ -682,8 +682,8 @@ class GeminiCoTClient:
 
     def __init__(
         self,
-        model: str = "gemini-2.5-flash-preview-05-20",
-        temperature: float = 0.4,
+        model: str = "gemini-2.5-flash-lite",
+        temperature: float = 0.3,
         max_retries: int = 5,
     ):
         self.model = model
@@ -1135,7 +1135,7 @@ This change has been implemented. `DifficultyConfig` now uses `needle_length_rat
 
 ---
 
-### Issue 2: Directory Naming Convention
+### Issue 2: Directory Naming Convention ✅ COMPLETED
 
 **Problem:** Current uses samples (`10000/`) which is not human-readable.
 
@@ -1291,7 +1291,7 @@ The needle length ratio change has been implemented:
 - All 8 task generators updated to use the new API
 - All tests updated and passing
 
-### Phase 1: Dataset Generator Script (Priority: High)
+### Phase 1: Dataset Generator Script (Priority: High) ✅ COMPLETED
 1. Create `scripts/generate_ts_haystack_dataset.py`
 2. Implement `GenerationConfig` with seconds-based context lengths
 3. Add CLI argument parsing
