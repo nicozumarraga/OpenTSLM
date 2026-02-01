@@ -329,6 +329,8 @@ class DifficultyConfig:
         distractor_density: Distractor configuration
         distractor_count: Number of distractors
         background_purity: Whether background is single or mixed activity
+        min_annotation_coverage: Minimum fraction of background with activity annotations
+                                (filters out samples with large unlabeled gaps)
         task_specific: Task-specific configuration overrides
     """
 
@@ -339,6 +341,7 @@ class DifficultyConfig:
     distractor_density: str = "none"  # "none", "low", "high"
     distractor_count: int = 0
     background_purity: str = "pure"  # "pure", "mixed"
+    min_annotation_coverage: float = 0.6  # 60% minimum annotation coverage
     task_specific: Dict[str, Any] = field(default_factory=dict)
 
     def get_needle_length_range_samples(self) -> Tuple[int, int]:
@@ -380,6 +383,7 @@ class DifficultyConfig:
             "distractor_density": self.distractor_density,
             "distractor_count": self.distractor_count,
             "background_purity": self.background_purity,
+            "min_annotation_coverage": self.min_annotation_coverage,
             "task_specific": self.task_specific,
         }
 
@@ -394,6 +398,7 @@ class DifficultyConfig:
             distractor_density=d.get("distractor_density", "none"),
             distractor_count=d.get("distractor_count", 0),
             background_purity=d.get("background_purity", "pure"),
+            min_annotation_coverage=d.get("min_annotation_coverage", 0.6),
             task_specific=d.get("task_specific", {}),
         )
 
@@ -721,6 +726,32 @@ class BackgroundSample:
     def is_pure(self) -> bool:
         """Return True if background contains only one activity."""
         return len(self.activities_present) == 1
+
+    @property
+    def annotation_coverage(self) -> float:
+        """
+        Compute the fraction of the background window that has activity annotations.
+
+        This measures how much of the signal has labeled activities vs unlabeled gaps.
+        Gaps occur when the original Capture-24 annotations don't map to the label scheme.
+
+        Returns:
+            Float between 0.0 and 1.0 representing the fraction of the window
+            that is covered by activity annotations.
+
+        Example:
+            If activity_timeline = [(0.0, 0.3, "walking"), (0.7, 1.0, "sitting")]
+            The coverage would be 0.3 + 0.3 = 0.6 (60%)
+        """
+        if not self.activity_timeline:
+            return 0.0
+
+        total_coverage = sum(
+            end_frac - start_frac
+            for start_frac, end_frac, _ in self.activity_timeline
+        )
+        # Clamp to [0, 1] to handle any floating point issues
+        return max(0.0, min(1.0, total_coverage))
 
     def get_activity_at_position(self, position_frac: float) -> Optional[str]:
         """

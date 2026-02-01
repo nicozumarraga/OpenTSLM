@@ -85,6 +85,11 @@ class CountingTaskGenerator(BaseTaskGenerator):
                 difficulty,
             )
 
+        # Validate annotation coverage
+        is_valid, reason = self._validate_background_coverage(background, difficulty)
+        if not is_valid:
+            return self._create_invalid_sample(reason, difficulty)
+
         # Step 2: Determine target activity (NOT in background)
         all_activities = set(self.needle_sampler.get_available_activities())
         candidate_activities = all_activities - background.activities_present

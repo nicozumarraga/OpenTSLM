@@ -102,6 +102,11 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
                 difficulty,
             )
 
+        # Validate annotation coverage
+        is_valid, reason = self._validate_background_coverage(background, difficulty)
+        if not is_valid:
+            return self._create_invalid_sample(reason, difficulty)
+
         # =====================================================================
         # Step 2: Extract and validate activity regions
         # =====================================================================

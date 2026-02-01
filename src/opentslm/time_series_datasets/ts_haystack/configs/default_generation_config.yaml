@@ -1,0 +1,158 @@
+# TS-Haystack Dataset Generation Configuration
+# =============================================
+# All values shown are defaults from the implementation.
+# Copy and modify as needed for your experiment.
+
+# ------------------------------------------------------------------------------
+# Global Settings
+# ------------------------------------------------------------------------------
+global:
+  seed: 42                              # Master seed for reproducibility
+  n_jobs: 4                             # Parallel workers for generation
+  output_dir: data/capture24/ts_haystack/tasks
+  overwrite: false                      # Overwrite existing files
+  source_hz: 100                        # Capture24 sampling rate
+
+# ------------------------------------------------------------------------------
+# Context Lengths (in SECONDS for human readability)
+# Converted internally: seconds * source_hz = samples
+# Example: 100s @ 100Hz = 10,000 samples
+# ------------------------------------------------------------------------------
+context_lengths_seconds:
+  - 100                                 # 100s = 10,000 samples
+
+# ------------------------------------------------------------------------------
+# Samples per Split
+# ------------------------------------------------------------------------------
+samples:
+  train: 10
+  val: 2
+  test: 2
+
+# ------------------------------------------------------------------------------
+# Style Transfer Settings (applied during needle insertion)
+# ------------------------------------------------------------------------------
+style_transfer:
+  transfer_mode: mean_only              # "mean_only" (recommended) or "full"
+  blend_mode: cosine                    # "cosine" or "linear"
+  blend_window_samples: 50              # Samples for boundary blending (~0.5s)
+
+# ------------------------------------------------------------------------------
+# Task Configurations
+# ------------------------------------------------------------------------------
+# Each task has its own difficulty settings.
+# Set enabled: false to skip a task.
+# needle_length_ratio_range: [min, max] as fraction of context (e.g., 0.02 = 2%)
+
+tasks:
+
+  # --------------------------------------------------------------------------
+  # Task 1: Existence
+  # "Is there {activity} in this recording?"
+  # --------------------------------------------------------------------------
+  existence:
+    enabled: true
+    needle_position: random             # "random", "beginning", "middle", "end"
+    needle_length_ratio_range: [0.02, 0.10]  # 2-10% of context
+    background_purity: pure             # "pure" or "mixed"
+    # Task-specific parameters
+    margin_samples: 100                 # Position margin from edges
+
+  # --------------------------------------------------------------------------
+  # Task 2: Localization
+  # "When did the {activity} bout occur?"
+  # --------------------------------------------------------------------------
+  localization:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.02, 0.10]
+    background_purity: pure
+    use_transition_probs: false         # Use transition matrix for needle selection
+    margin_samples: 100
+
+  # --------------------------------------------------------------------------
+  # Task 3: Counting
+  # "How many {activity} bouts occurred?"
+  # --------------------------------------------------------------------------
+  counting:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.02, 0.08]   # Smaller for multiple needles
+    background_purity: pure
+    min_bouts: 1                        # Minimum bouts to insert
+    max_bouts: 5                        # Maximum bouts to insert
+    min_gap_samples: 100                # Minimum gap between bouts
+    margin_samples: 100
+
+  # --------------------------------------------------------------------------
+  # Task 4: Ordering
+  # "Did {activity_a} occur before {activity_b}?"
+  # --------------------------------------------------------------------------
+  ordering:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.02, 0.10]
+    background_purity: pure
+    min_gap_samples: 100                # Gap between the two activities
+    margin_samples: 100
+    question_format: boolean            # "boolean" or "category"
+
+  # --------------------------------------------------------------------------
+  # Task 5: State Query (Cross-Scale)
+  # "What was the activity level when {event} occurred?"
+  # NOTE: background_purity is HARDCODED to "mixed" for this task
+  # --------------------------------------------------------------------------
+  state_query:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.01, 0.05]   # Smaller - local event in global context
+    # background_purity: mixed          # HARDCODED - cannot be changed
+    min_global_states: 2                # Minimum activity states in background
+    max_global_states: 5                # Maximum activity states
+    min_state_duration_samples: 500     # Minimum state size for needle insertion
+    position_mode: random               # "random", "center", "near_boundary"
+    boundary_margin_frac: 0.1           # Margin from state boundaries (fraction)
+
+  # --------------------------------------------------------------------------
+  # Task 6: Antecedent
+  # "What activity occurred before {target}?"
+  # --------------------------------------------------------------------------
+  antecedent:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.02, 0.08]   # Two needles need to fit
+    background_purity: pure
+    background_mode: low_activity       # "low_activity" (forces pure) or "mixed"
+    adjacency_gap_samples: 10           # Gap between antecedent and target
+    margin_samples: 100
+    use_transition_probs: false         # Use transition matrix for activity pairing
+
+  # --------------------------------------------------------------------------
+  # Task 7: Comparison
+  # "What was the longest/shortest period with/without {activity}?"
+  # --------------------------------------------------------------------------
+  comparison:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.02, 0.08]   # Multiple needles
+    background_purity: pure
+    min_bouts: 2                        # Minimum bouts to compare
+    max_bouts: 4                        # Maximum bouts
+    min_duration_diff_ms: 2000          # Minimum duration difference (avoid ties)
+    min_gap_samples: 100
+    margin_samples: 100
+
+  # --------------------------------------------------------------------------
+  # Task 8: Multi-Hop
+  # "When did the Kth {target} occur after {anchor}?"
+  # --------------------------------------------------------------------------
+  multi_hop:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.02, 0.06]   # Multiple needles + anchor
+    background_purity: pure
+    k_distribution: [0.4, 0.4, 0.2]     # P(K=1), P(K=2), P(K=3)
+    direction_mode: random              # "random", "after_only", "before_only"
+    n_distractors_opposite: 0           # Distractor targets on opposite side
+    min_gap_samples: 100
+    margin_samples: 100

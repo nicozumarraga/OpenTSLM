@@ -135,6 +135,11 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
                 difficulty,
             )
 
+        # Validate annotation coverage
+        is_valid, reason = self._validate_background_coverage(background, difficulty)
+        if not is_valid:
+            return self._create_invalid_sample(reason, difficulty)
+
         # Verify exclusion
         if anchor_activity in background.activities_present or target_activity in background.activities_present:
             return self._create_invalid_sample(

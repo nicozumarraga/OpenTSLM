@@ -121,13 +121,12 @@ class TestBasicSampling:
         assert "running" in question
         assert "walking" in answer.lower()
 
-    def test_sample_comparison_task(self, template_bank, rng):
-        """Test sampling comparison task templates."""
+    def test_sample_comparison_with_task(self, template_bank, rng):
+        """Test sampling comparison_with task templates (activity bouts)."""
         question, answer = template_bank.sample(
-            "comparison",
+            "comparison_with",
             rng,
             extremum="longest",
-            polarity="with",
             activity="walking",
             start="10:00 AM",
             end="10:30 AM",
@@ -135,6 +134,21 @@ class TestBasicSampling:
         )
 
         assert "longest" in question.lower() or "walking" in question
+
+    def test_sample_comparison_without_task(self, template_bank, rng):
+        """Test sampling comparison_without task templates (gaps between bouts)."""
+        question, answer = template_bank.sample(
+            "comparison_without",
+            rng,
+            extremum="longest",
+            activity="walking",
+            start="10:00 AM",
+            end="10:30 AM",
+            duration_ms=1800000,  # 30 minutes
+        )
+
+        # Check that the question mentions "without" or "gap"
+        assert "without" in question.lower() or "gap" in question.lower() or "walking" in question
 
     def test_sample_multi_hop_task(self, template_bank, rng):
         """Test sampling multi-hop task templates."""
@@ -276,10 +290,9 @@ class TestGrammarHelpers:
         """Test duration formatting for values >= 60000ms."""
         for _ in range(50):
             question, answer = template_bank.sample(
-                "comparison",
+                "comparison_with",
                 rng,
                 extremum="longest",
-                polarity="with",
                 activity="walking",
                 start="10:00 AM",
                 end="10:30 AM",
@@ -295,10 +308,9 @@ class TestGrammarHelpers:
         """Test duration formatting for values < 60000ms."""
         for _ in range(50):
             question, answer = template_bank.sample(
-                "comparison",
+                "comparison_with",
                 rng,
                 extremum="shortest",
-                polarity="with",
                 activity="walking",
                 start="10:00 AM",
                 end="10:00 AM",
@@ -365,7 +377,8 @@ class TestTemplateCounts:
             "ordering",
             "state_query",
             "antecedent",
-            "comparison",
+            "comparison_with",
+            "comparison_without",
             "multi_hop",
         ]
 
@@ -578,9 +591,15 @@ def _get_sample_kwargs_for_task(task: str) -> dict:
         },
         "state_query": {"needle_activity": "running", "global_state": "sedentary"},
         "antecedent": {"target_activity": "running", "antecedent_activity": "walking"},
-        "comparison": {
+        "comparison_with": {
             "extremum": "longest",
-            "polarity": "with",
+            "activity": "walking",
+            "start": "10:00 AM",
+            "end": "10:30 AM",
+            "duration_ms": 1800000,
+        },
+        "comparison_without": {
+            "extremum": "longest",
             "activity": "walking",
             "start": "10:00 AM",
             "end": "10:30 AM",

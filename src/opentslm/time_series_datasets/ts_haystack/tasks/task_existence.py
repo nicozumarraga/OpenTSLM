@@ -81,6 +81,11 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
                 "Failed to sample background", difficulty
             )
 
+        # Validate annotation coverage
+        is_valid, reason = self._validate_background_coverage(background, difficulty)
+        if not is_valid:
+            return self._create_invalid_sample(reason, difficulty)
+
         # Initialize output signal with background
         final_x = background.x.copy()
         final_y = background.y.copy()

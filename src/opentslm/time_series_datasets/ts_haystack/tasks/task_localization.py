@@ -103,6 +103,11 @@ class LocalizationTaskGenerator(BaseTaskGenerator):
                     difficulty,
                 )
 
+        # Validate annotation coverage
+        is_valid, reason = self._validate_background_coverage(background, difficulty)
+        if not is_valid:
+            return self._create_invalid_sample(reason, difficulty)
+
         # Step 3: Sample needle from activity NOT in background
         # No PID exclusion needed - we're selecting a different activity,
         # so even if from same participant, the data won't overlap

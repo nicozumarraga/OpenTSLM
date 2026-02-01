@@ -18,6 +18,9 @@ ts_haystack/
 │   ├── needle_sampler.py      # Sample needles from bout index
 │   ├── style_transfer.py      # Covariance projection + blending
 │   └── prompt_templates.py    # NL templates for Q/A diversity
+├── configs/                    # NEW: YAML-based configuration
+│   ├── default_generation_config.yaml  # Default generation config
+│   └── generation_config.py   # Config dataclasses & loader
 ├── tasks/
 │   ├── base_task.py           # Abstract base class for all tasks
 │   ├── task_existence.py      # Task 1: Existence detection
@@ -32,7 +35,9 @@ ts_haystack/
 │   ├── timestamp_utils.py     # Timestamp conversion utilities
 │   └── position_utils.py      # Position sampling utilities
 ├── scripts/
-│   └── build_core_artifacts.py  # CLI to build timelines, index, matrix
+│   ├── build_core_artifacts.py           # CLI to build timelines, index, matrix
+│   ├── generate_ts_haystack_dataset.py   # NEW: Centralized dataset generator
+│   └── generate_ts_haystack_dataset.sbatch  # SLURM job script
 └── test/
     └── test_imports.py        # Verify module imports
 ```
@@ -69,9 +74,33 @@ python -m opentslm.time_series_datasets.ts_haystack.scripts.build_core_artifacts
     --label-scheme WillettsSpecific2018
 ```
 
-### 2. Generate Task Datasets
+### 2. Generate Task Datasets (YAML-based - Recommended)
 
-Each task can be run as a standalone script:
+The centralized dataset generator uses YAML configuration for full visibility and reproducibility.
+
+```bash
+# Print default config to create a starting point
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_dataset \
+    --print-default-config > my_config.yaml
+
+# Generate using config file
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_dataset \
+    --config my_config.yaml
+
+# Dry run to validate config and see plan
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_dataset \
+    --config my_config.yaml --dry-run
+
+# Override specific tasks/context lengths via CLI
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_dataset \
+    --config my_config.yaml \
+    --tasks existence localization \
+    --context-lengths 100 1000
+```
+
+### 2b. Generate Task Datasets (Legacy per-task scripts)
+
+Each task can also be run as a standalone script:
 
 ```bash
 # Generate existence task samples
@@ -89,6 +118,78 @@ python -m opentslm.time_series_datasets.ts_haystack.tasks.task_multi_hop \
     --n-jobs 4 \
     --direction-mode random \
     --n-distractors 1
+```
+
+## YAML Configuration
+
+All generation parameters are controlled via YAML configuration files for full visibility and reproducibility.
+
+### Config Structure
+
+```yaml
+# Global settings
+global:
+  seed: 42                    # Master seed for reproducibility
+  n_jobs: 4                   # Parallel workers
+  output_dir: data/capture24/ts_haystack/tasks
+  overwrite: false            # Skip existing files
+  source_hz: 100              # Capture24 sampling rate
+
+# Context lengths in SECONDS (more readable than samples)
+# 100s @ 100Hz = 10,000 samples
+context_lengths_seconds:
+  - 100                       # 100s = 10,000 samples
+  - 1000                      # 1000s = 100,000 samples (~17 min)
+
+# Samples per split
+samples:
+  train: 10000
+  val: 1000
+  test: 1000
+
+# Style transfer settings
+style_transfer:
+  transfer_mode: mean_only    # "mean_only" or "full"
+  blend_mode: cosine          # "cosine" or "linear"
+  blend_window_samples: 50
+
+# Per-task configuration
+tasks:
+  existence:
+    enabled: true
+    needle_position: random   # "random", "beginning", "middle", "end"
+    needle_length_ratio_range: [0.02, 0.10]  # 2-10% of context
+    background_purity: pure   # "pure" or "mixed"
+    margin_samples: 100       # Task-specific parameter
+
+  counting:
+    enabled: true
+    needle_length_ratio_range: [0.02, 0.08]
+    background_purity: pure
+    min_bouts: 1              # Task-specific parameters
+    max_bouts: 5
+    min_gap_samples: 100
+  # ... more tasks
+```
+
+### Key Configuration Options
+
+| Parameter | Description |
+|-----------|-------------|
+| `context_lengths_seconds` | Window sizes in seconds (converted to samples internally) |
+| `needle_length_ratio_range` | Needle duration as fraction of context (e.g., 0.02 = 2%) |
+| `background_purity` | "pure" (single activity) or "mixed" (multiple activities) |
+| `needle_position` | "random", "beginning", "middle", or "end" |
+| Task-specific | Each task has additional parameters (see default config) |
+
+### SLURM Job Submission
+
+```bash
+# Submit with default config
+sbatch scripts/generate_ts_haystack_dataset.sbatch
+
+# Submit with custom config
+sbatch --export=CONFIG=configs/my_experiment.yaml scripts/generate_ts_haystack_dataset.sbatch
 ```
 
 ## Output
@@ -120,6 +221,45 @@ data/capture24/ts_haystack/
 Directory naming uses `{seconds}s` format for human readability. The structure
 groups by context length first, then by task, enabling easy curriculum learning
 by context length.
+
+### Parquet Schema
+
+Each `data.parquet` contains:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `x_axis` | List[float] | X-axis accelerometer data |
+| `y_axis` | List[float] | Y-axis accelerometer data |
+| `z_axis` | List[float] | Z-axis accelerometer data |
+| `task_type` | str | Task name (e.g., "existence") |
+| `context_length_samples` | int | Window size in samples |
+| `background_pid` | str | Source participant ID |
+| `recording_time_start` | str | Human-readable start time (e.g., "6:00 AM") |
+| `recording_time_end` | str | Human-readable end time (e.g., "8:00 AM") |
+| `question` | str | Generated question |
+| `answer` | str | Ground truth answer |
+| `answer_type` | str | Answer type (boolean, timestamp, integer, category, time_range) |
+| `needles` | str (JSON) | Inserted needle metadata (positions, activities, timestamps) |
+| `difficulty_config` | str (JSON) | Difficulty parameters used for generation |
+| `is_valid` | bool | Validation status |
+| `validation_notes` | str | Validation notes (if any) |
+
+The `needles` field contains rich metadata for each inserted activity bout:
+
+```json
+[
+  {
+    "activity": "walking",
+    "source_pid": "P001",
+    "insert_position_samples": 5000,
+    "insert_position_frac": 0.5,
+    "duration_samples": 800,
+    "duration_ms": 8000,
+    "timestamp_start": "7:15 AM",
+    "timestamp_end": "7:23 AM"
+  }
+]
+```
 
 ## Programmatic Usage
 

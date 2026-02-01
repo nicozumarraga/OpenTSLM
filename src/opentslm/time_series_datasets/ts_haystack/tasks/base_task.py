@@ -177,6 +177,40 @@ class BaseTaskGenerator(ABC):
             end_time_str=background.recording_time_context[1],
         )
 
+    def _validate_background_coverage(
+        self,
+        background: BackgroundSample,
+        difficulty: DifficultyConfig,
+    ) -> Tuple[bool, str]:
+        """
+        Validate that background has sufficient annotation coverage.
+
+        Backgrounds with large unlabeled gaps (where annotations don't map to the
+        label scheme) can create ambiguous samples. This validation ensures that
+        at least `min_annotation_coverage` of the background window has activity
+        annotations.
+
+        Args:
+            background: BackgroundSample to validate
+            difficulty: DifficultyConfig with min_annotation_coverage threshold
+
+        Returns:
+            Tuple of (is_valid, reason_string)
+
+        Example:
+            If background.annotation_coverage = 0.45 and min_annotation_coverage = 0.6,
+            returns (False, "Low annotation coverage: 45.0% < 60.0% required")
+        """
+        coverage = background.annotation_coverage
+        min_coverage = difficulty.min_annotation_coverage
+
+        if coverage < min_coverage:
+            return (
+                False,
+                f"Low annotation coverage: {coverage:.1%} < {min_coverage:.1%} required",
+            )
+        return True, ""
+
     def _sample_position(
         self,
         context_length: int,

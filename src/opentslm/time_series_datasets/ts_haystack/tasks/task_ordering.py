@@ -110,6 +110,11 @@ class OrderingTaskGenerator(BaseTaskGenerator):
                 difficulty,
             )
 
+        # Validate annotation coverage
+        is_valid, reason = self._validate_background_coverage(background, difficulty)
+        if not is_valid:
+            return self._create_invalid_sample(reason, difficulty)
+
         # Verify exclusion worked
         if activity_a in background.activities_present or activity_b in background.activities_present:
             return self._create_invalid_sample(

@@ -114,6 +114,11 @@ class ComparisonTaskGenerator(BaseTaskGenerator):
                 difficulty,
             )
 
+        # Validate annotation coverage
+        is_valid, reason = self._validate_background_coverage(background, difficulty)
+        if not is_valid:
+            return self._create_invalid_sample(reason, difficulty)
+
         # =====================================================================
         # Step 3: Sample target activity (NOT in background)
         # =====================================================================
@@ -289,11 +294,15 @@ class ComparisonTaskGenerator(BaseTaskGenerator):
         # Convert duration to ms for template
         duration_ms_answer = int(answer_period[2] * 1000 / self.source_hz)
 
+        # Select appropriate template set based on polarity:
+        # - "comparison_with": templates for finding longest/shortest activity BOUTS
+        # - "comparison_without": templates for finding longest/shortest GAPS between bouts
+        template_task = f"comparison_{polarity}"
+
         question, answer = self.template_bank.sample(
-            task="comparison",
+            task=template_task,
             rng=rng,
             extremum=extremum,
-            polarity=polarity,
             activity=target_activity,
             start=answer_period[0],
             end=answer_period[1],

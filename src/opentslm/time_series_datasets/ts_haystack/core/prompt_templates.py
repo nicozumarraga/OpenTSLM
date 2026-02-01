@@ -682,18 +682,11 @@ class PromptTemplateBank:
             ),
         ],
         # =====================================================================
-        # Task 7: Comparison - "What was the {longest/shortest} {activity} bout?"
+        # Task 7a: Comparison WITH activity - "What was the {extremum} {activity} bout?"
+        # Used when polarity="with" - finding longest/shortest activity BOUTS
         # =====================================================================
-        "comparison": [
+        "comparison_with": [
             # --- Interrogative forms ---
-            TemplateVariant(
-                question="What was the {extremum} period {polarity} {activity}?",
-                answer="The {extremum} period was from {start} to {end}.",
-            ),
-            TemplateVariant(
-                question="When was the {extremum} stretch {polarity} {activity}?",
-                answer="The {extremum} stretch {polarity} {activity} was from {start} to {end}.",
-            ),
             TemplateVariant(
                 question="What is the {extremum} {activity} bout in this recording?",
                 answer="The {extremum} bout is from {start} to {end} ({duration}).",
@@ -718,14 +711,22 @@ class PromptTemplateBank:
                 question="Which {activity} event had the {extremum} duration?",
                 answer="The event from {start} to {end} ({duration}).",
             ),
+            TemplateVariant(
+                question="What was the {extremum} {activity} period in the data?",
+                answer="The {extremum} period was from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="When was the {extremum} stretch of {activity}?",
+                answer="The {extremum} stretch of {activity} was from {start} to {end}.",
+            ),
             # --- Imperative forms ---
             TemplateVariant(
                 question="Identify the {extremum} {activity} bout.",
                 answer="From {start} to {end} ({duration}).",
             ),
             TemplateVariant(
-                question="Find the {extremum} period {polarity} {activity}.",
-                answer="The {extremum} period: {start} to {end}.",
+                question="Find the {extremum} {activity} bout in this recording.",
+                answer="The {extremum} bout: {start} to {end}.",
             ),
             TemplateVariant(
                 question="Locate the {extremum} {activity} episode in this data.",
@@ -745,7 +746,7 @@ class PromptTemplateBank:
                 answer="The {extremum} bout: {start} to {end} ({duration}).",
             ),
             TemplateVariant(
-                question="Could you find the {extremum} period {polarity} {activity}?",
+                question="Could you find the {extremum} {activity} period?",
                 answer="The {extremum} period: {start} to {end}.",
             ),
             TemplateVariant(
@@ -768,6 +769,96 @@ class PromptTemplateBank:
             TemplateVariant(
                 question="In this recording, when was the {extremum} {activity} stretch?",
                 answer="The {extremum} stretch: {start} to {end}.",
+            ),
+        ],
+        # =====================================================================
+        # Task 7b: Comparison WITHOUT activity - "What was the {extremum} gap without {activity}?"
+        # Used when polarity="without" - finding longest/shortest GAPS between bouts
+        # =====================================================================
+        "comparison_without": [
+            # --- Interrogative forms ---
+            TemplateVariant(
+                question="What was the {extremum} period without {activity}?",
+                answer="The {extremum} period without {activity} was from {start} to {end} ({duration}).",
+            ),
+            TemplateVariant(
+                question="When was the {extremum} stretch without {activity}?",
+                answer="The {extremum} stretch without {activity} was from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="What is the {extremum} gap between {activity} bouts?",
+                answer="The {extremum} gap is from {start} to {end} ({duration}).",
+            ),
+            TemplateVariant(
+                question="Which period without {activity} was the {extremum}?",
+                answer="The period from {start} to {end} was {extremum} ({duration}).",
+            ),
+            TemplateVariant(
+                question="What was the time range of the {extremum} interval without {activity}?",
+                answer="The {extremum} interval: {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="When did the {extremum} gap without {activity} occur?",
+                answer="The {extremum} gap occurred from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="What are the timestamps of the {extremum} period lacking {activity}?",
+                answer="Timestamps: {start} to {end} ({duration}).",
+            ),
+            TemplateVariant(
+                question="Which interval between {activity} bouts had the {extremum} duration?",
+                answer="The interval from {start} to {end} ({duration}).",
+            ),
+            # --- Imperative forms ---
+            TemplateVariant(
+                question="Identify the {extremum} gap without {activity}.",
+                answer="From {start} to {end} ({duration}).",
+            ),
+            TemplateVariant(
+                question="Find the {extremum} period without {activity}.",
+                answer="The {extremum} period: {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Locate the {extremum} interval lacking {activity} in this data.",
+                answer="The {extremum} interval: {start} to {end} ({duration}).",
+            ),
+            TemplateVariant(
+                question="Determine the {extremum} stretch without {activity}.",
+                answer="The {extremum} stretch: {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Pinpoint the {extremum} gap between {activity} bouts.",
+                answer="{start} to {end} ({duration}).",
+            ),
+            # --- Request forms ---
+            TemplateVariant(
+                question="Please identify the {extremum} period without {activity}.",
+                answer="The {extremum} period: {start} to {end} ({duration}).",
+            ),
+            TemplateVariant(
+                question="Could you find the {extremum} gap without {activity}?",
+                answer="The {extremum} gap: {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="I need to know which interval without {activity} was {extremum}.",
+                answer="The interval from {start} to {end} was {extremum} ({duration}).",
+            ),
+            TemplateVariant(
+                question="Would you locate the {extremum} stretch without {activity}?",
+                answer="The {extremum} stretch: {start} to {end}.",
+            ),
+            # --- Conversational forms ---
+            TemplateVariant(
+                question="Looking at all gaps between {activity} bouts, which was {extremum}?",
+                answer="The gap from {start} to {end} was {extremum} ({duration}).",
+            ),
+            TemplateVariant(
+                question="Among the periods without {activity}, which one was {extremum}?",
+                answer="The period from {start} to {end} ({duration}).",
+            ),
+            TemplateVariant(
+                question="In this recording, when was the {extremum} interval without {activity}?",
+                answer="The {extremum} interval: {start} to {end}.",
             ),
         ],
         # =====================================================================
