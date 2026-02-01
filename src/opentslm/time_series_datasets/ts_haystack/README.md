@@ -34,9 +34,19 @@ ts_haystack/
 ├── utils/
 │   ├── timestamp_utils.py     # Timestamp conversion utilities
 │   └── position_utils.py      # Position sampling utilities
+├── dataset/                    # NEW: QADataset implementations
+│   ├── ts_haystack_qa_loader.py       # Load parquet files as HuggingFace Dataset
+│   ├── TSHaystackQADataset.py         # QADataset for direct answer training
+│   └── TSHaystackCoTQADataset.py      # QADataset for CoT training
+├── cot/                        # NEW: Chain-of-thought generation
+│   ├── llm_client.py                  # Gemini API client with retry logic
+│   ├── plot_generator.py              # Accelerometer plot generation
+│   ├── prompt_builder.py              # Task-specific prompt construction
+│   └── cot_generator.py               # Main CoT generation class
 ├── scripts/
 │   ├── build_core_artifacts.py           # CLI to build timelines, index, matrix
-│   ├── generate_ts_haystack_dataset.py   # NEW: Centralized dataset generator
+│   ├── generate_ts_haystack_dataset.py   # Centralized dataset generator
+│   ├── generate_ts_haystack_cot.py       # NEW: CoT rationale generator
 │   └── generate_ts_haystack_dataset.sbatch  # SLURM job script
 └── test/
     └── test_imports.py        # Verify module imports
@@ -47,7 +57,8 @@ ts_haystack/
 - [x] Phase 1: Core infrastructure (timelines, bout index, transition matrix)
 - [x] Phase 2: Sampling & style transfer (background/needle samplers, style transfer, prompts)
 - [x] Phase 3: Task generators (all 8 tasks implemented)
-- [ ] Phase 4: QADataset integration
+- [x] Phase 4: QADataset integration (TSHaystackQADataset, TSHaystackCoTQADataset)
+- [x] Phase 5: CoT generation pipeline (LLM-based rationale generation)
 
 ## Task Overview
 
@@ -453,3 +464,204 @@ Each task supports `task_specific` parameters in `DifficultyConfig`:
   Plots are saved to test/plots/<task_name>/.
 
   Note: Tests require Phase 1 artifacts to be built first.
+
+## OpenTSLM Training Integration
+
+### 3. Create QADataset for Training
+
+After generating the task datasets, use `TSHaystackQADataset` to train OpenTSLM models:
+
+```python
+from opentslm.time_series_datasets.ts_haystack import TSHaystackQADataset
+
+# Single task training
+train_dataset = TSHaystackQADataset(
+    split="train",
+    EOS_TOKEN=tokenizer.eos_token,
+    tasks=["existence"],
+    context_lengths_seconds=[100],  # 100s = 10000 samples at 100Hz
+)
+
+# Multi-task training
+train_dataset = TSHaystackQADataset(
+    split="train",
+    EOS_TOKEN=tokenizer.eos_token,
+    tasks=["existence", "localization", "counting", "ordering"],
+    context_lengths_seconds=[100, 1000],  # Multiple context lengths
+)
+
+val_dataset = TSHaystackQADataset(split="validation", EOS_TOKEN=tokenizer.eos_token)
+test_dataset = TSHaystackQADataset(split="test", EOS_TOKEN=tokenizer.eos_token)
+
+print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
+print(f"Tasks: {train_dataset.get_tasks()}")
+```
+
+### Using with DataLoader
+
+```python
+from torch.utils.data import DataLoader
+from opentslm.time_series_datasets.util import extend_time_series_to_match_patch_size_and_aggregate
+
+dataloader = DataLoader(
+    train_dataset,
+    batch_size=4,
+    shuffle=True,
+    collate_fn=lambda batch: extend_time_series_to_match_patch_size_and_aggregate(
+        batch, patch_size=4
+    ),
+)
+
+for batch in dataloader:
+    # batch is a list of dicts with keys:
+    # - pre_prompt, post_prompt, time_series, time_series_text, answer
+    # - task_type, answer_type, question, x_axis, y_axis, z_axis
+    print(batch[0]["answer"])
+    break
+```
+
+### Sample Output Format
+
+Each sample from `TSHaystackQADataset` contains:
+
+```python
+sample = {
+    # Prompt components (for model input)
+    "pre_prompt": "You are given accelerometer data... Question: Is there walking...",
+    "time_series": [[x_values], [y_values], [z_values]],
+    "time_series_text": ["The following is the accelerometer data on the x-axis", ...],
+    "post_prompt": "Instructions: ... Answer with 'Yes' or 'No'...",
+    "answer": "Yes",
+
+    # Metadata
+    "task_type": "existence",
+    "answer_type": "boolean",
+    "question": "Is there walking in this recording?",
+    "context_length_samples": 10000,
+
+    # Raw data (for analysis)
+    "x_axis": [0.38, 0.39, ...],
+    "y_axis": [0.48, 0.49, ...],
+    "z_axis": [-0.79, -0.78, ...],
+    "needles": "[{\"activity\": \"walking\", ...}]",  # JSON string
+}
+```
+
+## Chain-of-Thought (CoT) Generation
+
+### 4. Generate CoT Rationales
+
+Generate LLM-based chain-of-thought rationales for training models to reason step-by-step:
+
+```bash
+# Generate CoT for all tasks at 100s context length
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_cot \
+    --context-lengths 100 \
+    --tasks all \
+    --max-workers 4
+
+# Generate CoT for specific tasks and splits
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_cot \
+    --context-lengths 100 \
+    --tasks existence localization counting \
+    --splits train val \
+    --max-workers 8
+
+# Test with a few samples
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_cot \
+    --context-lengths 100 \
+    --tasks existence \
+    --splits test \
+    --max-samples 10
+
+# Debug mode - saves JSON files with sample data, prompts, rationales, and plot images
+python -m opentslm.time_series_datasets.ts_haystack.scripts.generate_ts_haystack_cot \
+    --context-lengths 100 \
+    --tasks existence \
+    --splits test \
+    --max-samples 5 \
+    --debug \
+    --debug-output-dir debug_output/cot
+```
+
+**Prerequisites:**
+- Task datasets must be generated first (see generate_ts_haystack_dataset.py)
+- `GEMINI_API_KEY` environment variable must be set
+
+### CoT Output Structure
+
+```
+data/capture24/ts_haystack/cot/
+├── 100s/
+│   ├── existence/
+│   │   ├── train/data.parquet  # Same schema + "rationale" column
+│   │   ├── val/data.parquet
+│   │   └── test/data.parquet
+│   ├── localization/
+│   └── ...
+├── debug/                      # Debug output (when --debug is used)
+│   ├── existence/
+│   │   ├── sample_000000.json  # Full sample data + prompt + rationale
+│   │   ├── sample_000000_plot.png  # Plot image sent to LLM
+│   │   ├── sample_000001.json
+│   │   └── ...
+│   └── ...
+└── metadata.json               # Generation metadata (model, params, stats)
+```
+
+### Debug Mode Output
+
+When running with `--debug`, each sample generates:
+
+1. **JSON file** (`sample_NNNNNN.json`):
+   - `sample_idx`: Sample index
+   - `task_type`: Task type (existence, counting, etc.)
+   - `sample_data`: All parquet columns (excluding large arrays, includes length info)
+   - `prompt`: Full prompt sent to LLM
+   - `rationale`: Generated rationale
+   - `plot_base64`: Base64-encoded PNG plot (if plots enabled)
+   - `timestamp`: Generation timestamp
+
+2. **PNG file** (`sample_NNNNNN_plot.png`): The accelerometer plot image sent to the LLM for visual analysis
+
+### 5. Train with CoT Rationales
+
+Use `TSHaystackCoTQADataset` to train with chain-of-thought reasoning:
+
+```python
+from opentslm.time_series_datasets.ts_haystack import TSHaystackCoTQADataset
+
+# CoT dataset - answer includes full rationale
+train_dataset = TSHaystackCoTQADataset(
+    split="train",
+    EOS_TOKEN=tokenizer.eos_token,
+    tasks=["existence", "counting"],
+    context_lengths_seconds=[100],
+)
+
+sample = train_dataset[0]
+print(sample["answer"])         # Full rationale ending with "Answer: ..."
+print(sample["direct_answer"])  # Just the final answer (for evaluation)
+```
+
+### Example CoT Rationale
+
+```
+Looking at the accelerometer data spanning from 6:00 AM to 7:40 AM, I need to
+identify all walking bouts. The signal shows predominantly low-variance patterns
+consistent with sedentary activity, but I can identify three distinct periods of
+rhythmic, moderate-intensity oscillations characteristic of walking gait.
+
+The first walking bout appears around 6:12 AM and continues until approximately
+6:18 AM, showing the typical regular patterns of heel-strike and toe-off. A second
+walking period begins at 6:35 AM, lasting until 6:42 AM with similar oscillatory
+characteristics. Finally, a third walking bout is visible from 7:15 AM to 7:22 AM.
+
+Counting all the distinct walking periods: 3.
+
+Answer: 3
+```
+
+## Caching Note
+
+Both `TSHaystackQADataset` and `TSHaystackCoTQADataset` use class-level caching (inherited from `QADataset`). Once data is loaded for a configuration, it's cached for all subsequent instances. If you need different configurations in the same session, restart Python or use separate processes.

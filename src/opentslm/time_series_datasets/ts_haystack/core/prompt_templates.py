@@ -871,7 +871,7 @@ class PromptTemplateBank:
                 answer="The {ordinal} {target_activity} bout {direction} {anchor_activity} occurred from {start} to {end}.",
             ),
             TemplateVariant(
-                question="What is the timing of the {ordinal} {target_activity} {direction} {anchor_activity}?",
+                question="What is the timing of the {ordinal} {target_activity} bout {direction} {anchor_activity}?",
                 answer="The timing is {start} to {end}.",
             ),
             TemplateVariant(
@@ -879,11 +879,11 @@ class PromptTemplateBank:
                 answer="The {ordinal} episode was from {start} to {end}.",
             ),
             TemplateVariant(
-                question="At what time did the {ordinal} {target_activity} happen {direction} {anchor_activity}?",
+                question="At what time did the {ordinal} {target_activity} bout happen {direction} {anchor_activity}?",
                 answer="It happened from {start} to {end}.",
             ),
             TemplateVariant(
-                question="What are the timestamps for the {ordinal} {target_activity} {direction} {anchor_activity}?",
+                question="What are the timestamps for the {ordinal} {target_activity} activity {direction} {anchor_activity}?",
                 answer="Timestamps: {start} to {end}.",
             ),
             TemplateVariant(
@@ -891,16 +891,16 @@ class PromptTemplateBank:
                 answer="It took place from {start} to {end}.",
             ),
             TemplateVariant(
-                question="Where in the recording is the {ordinal} {target_activity} {direction} {anchor_activity}?",
+                question="Where in the recording is the {ordinal} {target_activity} activity {direction} {anchor_activity}?",
                 answer="It is located from {start} to {end}.",
             ),
             # --- Imperative forms ---
             TemplateVariant(
-                question="Identify the {ordinal} {target_activity} {direction} {anchor_activity}.",
+                question="Identify the {ordinal} {target_activity} bout {direction} {anchor_activity}.",
                 answer="From {start} to {end}.",
             ),
             TemplateVariant(
-                question="After locating {anchor_activity}, find the {ordinal} {target_activity} {direction} it.",
+                question="After locating {anchor_activity}, find the {ordinal} {target_activity} activity {direction} it.",
                 answer="The {ordinal} {target_activity}: {start} to {end}.",
             ),
             TemplateVariant(
@@ -912,20 +912,20 @@ class PromptTemplateBank:
                 answer="The {ordinal} instance: {start} to {end}.",
             ),
             TemplateVariant(
-                question="Determine when the {ordinal} {target_activity} occurred {direction} {anchor_activity}.",
+                question="Determine when the {ordinal} {target_activity} activity occurred {direction} {anchor_activity}.",
                 answer="It occurred from {start} to {end}.",
             ),
             TemplateVariant(
-                question="Pinpoint the {ordinal} {target_activity} {direction} {anchor_activity}.",
+                question="Pinpoint the {ordinal} {target_activity} bout {direction} {anchor_activity}.",
                 answer="{start} to {end}.",
             ),
             # --- Request forms ---
             TemplateVariant(
-                question="After locating {anchor_activity}, when was the {ordinal} {target_activity} bout {direction} it?",
+                question="After locating {anchor_activity}, when was the {ordinal} {target_activity} activity bout {direction} it?",
                 answer="It occurred from {start} to {end}.",
             ),
             TemplateVariant(
-                question="Please find the {ordinal} {target_activity} {direction} {anchor_activity}.",
+                question="Please find the {ordinal} {target_activity} activity {direction} {anchor_activity}.",
                 answer="The {ordinal} {target_activity}: {start} to {end}.",
             ),
             TemplateVariant(
@@ -933,7 +933,7 @@ class PromptTemplateBank:
                 answer="The bout is from {start} to {end}.",
             ),
             TemplateVariant(
-                question="I need the timing of the {ordinal} {target_activity} {direction} {anchor_activity}.",
+                question="I need the timing of the {ordinal} {target_activity} activity {direction} {anchor_activity}.",
                 answer="The timing: {start} to {end}.",
             ),
             TemplateVariant(
@@ -942,19 +942,19 @@ class PromptTemplateBank:
             ),
             # --- Conversational forms ---
             TemplateVariant(
-                question="First find {anchor_activity}, then tell me when the {ordinal} {target_activity} occurred {direction} it.",
+                question="First find {anchor_activity}, then tell me when the {ordinal} {target_activity} activity occurred {direction} it.",
                 answer="The {ordinal} {target_activity} {direction} {anchor_activity}: {start} to {end}.",
             ),
             TemplateVariant(
-                question="Using {anchor_activity} as a reference, when was the {ordinal} {target_activity} {direction} it?",
+                question="Using {anchor_activity} as a reference, when was the {ordinal} {target_activity} bout {direction} it?",
                 answer="The {ordinal} {target_activity} was from {start} to {end}.",
             ),
             TemplateVariant(
-                question="Relative to {anchor_activity}, identify the {ordinal} {target_activity} {direction} it.",
+                question="Relative to {anchor_activity}, identify the {ordinal} {target_activity} activity {direction} it.",
                 answer="The {ordinal} {target_activity}: {start} to {end}.",
             ),
             TemplateVariant(
-                question="Looking at the sequence around {anchor_activity}, when did the {ordinal} {target_activity} occur {direction} it?",
+                question="Looking at the sequence around {anchor_activity}, when did the {ordinal} {target_activity} bout occur {direction} it?",
                 answer="It occurred from {start} to {end}.",
             ),
         ],

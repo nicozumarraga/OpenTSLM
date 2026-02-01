@@ -8,6 +8,8 @@ over long time series (1K-1M+ datapoints) using Capture-24 accelerometer data.
 Modules:
 - core: Core infrastructure (data structures, samplers, style transfer)
 - tasks: Task generators (existence, localization, counting, ordering, etc.)
+- dataset: QADataset implementations for OpenTSLM training
+- cot: Chain-of-thought rationale generation
 - utils: Utility functions (timestamp conversion, position sampling)
 """
 
@@ -57,6 +59,26 @@ from opentslm.time_series_datasets.ts_haystack.tasks import (
     list_available_tasks,
 )
 
+# =============================================================================
+# Dataset & QADataset Integration
+# =============================================================================
+from opentslm.time_series_datasets.ts_haystack.dataset import (
+    TSHaystackQADataset,
+    TSHaystackCoTQADataset,
+    load_ts_haystack_splits,
+    get_available_tasks,
+)
+
+# =============================================================================
+# CoT Rationale Generation
+# =============================================================================
+from opentslm.time_series_datasets.ts_haystack.cot import (
+    GeminiCoTClient,
+    TSHaystackCoTGenerator,
+    create_accelerometer_plot,
+    create_cot_prompt,
+)
+
 __all__ = [
     # Data structures
     "BoutRecord",
@@ -93,4 +115,14 @@ __all__ = [
     "TASK_REGISTRY",
     "get_task_generator",
     "list_available_tasks",
+    # Phase 4: Dataset & QADataset
+    "TSHaystackQADataset",
+    "TSHaystackCoTQADataset",
+    "load_ts_haystack_splits",
+    "get_available_tasks",
+    # CoT Generation
+    "GeminiCoTClient",
+    "TSHaystackCoTGenerator",
+    "create_accelerometer_plot",
+    "create_cot_prompt",
 ]
