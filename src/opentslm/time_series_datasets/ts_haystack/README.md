@@ -101,20 +101,25 @@ data/capture24/ts_haystack/
 ├── bout_index.parquet         # Cross-participant bout index
 ├── transition_matrix.json     # Activity transition probabilities
 └── tasks/
-    ├── existence/
-    │   ├── 10000/
+    ├── 10s/                   # 1000 samples at 100Hz (10 seconds)
+    │   ├── existence/
     │   │   ├── train/data.parquet
     │   │   ├── val/data.parquet
-    │   │   └── test/data.parquet
-    │   └── metadata.json
-    ├── localization/
-    ├── counting/
-    ├── ordering/
-    ├── state_query/
-    ├── antecedent/
-    ├── comparison/
-    └── multi_hop/
+    │   │   ├── test/data.parquet
+    │   │   └── metadata.json
+    │   ├── localization/
+    │   └── ...
+    ├── 100s/                  # 10000 samples at 100Hz (100 seconds)
+    │   ├── existence/
+    │   │   └── ...
+    │   └── ...
+    └── 1000s/                 # 100000 samples at 100Hz (~17 minutes)
+        └── ...
 ```
+
+Directory naming uses `{seconds}s` format for human readability. The structure
+groups by context length first, then by task, enabling easy curriculum learning
+by context length.
 
 ## Programmatic Usage
 

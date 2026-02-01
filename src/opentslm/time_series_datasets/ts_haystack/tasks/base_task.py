@@ -549,6 +549,9 @@ class BaseTaskGenerator(ABC):
         """
         Save generated samples to parquet file.
 
+        Directory structure: {output_dir}/{context_s}s/{task}/{split}/data.parquet
+        E.g., tasks/100s/existence/train/data.parquet
+
         Args:
             samples: List of GeneratedSample objects
             split: Data split ("train", "val", "test")
@@ -561,7 +564,9 @@ class BaseTaskGenerator(ABC):
         if output_dir is None:
             output_dir = TS_HAYSTACK_DATA_DIR / "tasks"
 
-        task_dir = output_dir / self.task_name / str(context_length) / split
+        # Convert samples to seconds for human-readable directory name
+        context_s = context_length // self.source_hz
+        task_dir = output_dir / f"{context_s}s" / self.task_name / split
         task_dir.mkdir(parents=True, exist_ok=True)
 
         # Convert samples to dictionaries
@@ -584,14 +589,19 @@ class BaseTaskGenerator(ABC):
         self,
         config: TaskConfig,
         generation_stats: Dict[str, Any],
+        context_length: int,
         output_dir: Optional[Path] = None,
     ) -> Path:
         """
         Save task metadata alongside generated data.
 
+        Directory structure: {output_dir}/{context_s}s/{task}/metadata.json
+        E.g., tasks/100s/existence/metadata.json
+
         Args:
             config: Task configuration used
             generation_stats: Statistics about generation
+            context_length: Context length in samples
             output_dir: Output directory
 
         Returns:
@@ -600,12 +610,17 @@ class BaseTaskGenerator(ABC):
         if output_dir is None:
             output_dir = TS_HAYSTACK_DATA_DIR / "tasks"
 
-        task_dir = output_dir / self.task_name
+        # Convert samples to seconds for human-readable directory name
+        context_s = context_length // self.source_hz
+        task_dir = output_dir / f"{context_s}s" / self.task_name
         task_dir.mkdir(parents=True, exist_ok=True)
 
         metadata = {
             "task_name": self.task_name,
             "answer_type": self.answer_type,
+            "context_length_samples": context_length,
+            "context_length_seconds": context_s,
+            "source_hz": self.source_hz,
             "config": config.to_dict(),
             "seed_config": self.seed_manager.get_metadata(),
             "generation_stats": generation_stats,
