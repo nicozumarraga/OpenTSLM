@@ -41,7 +41,7 @@ class CountingTaskGenerator(BaseTaskGenerator):
     Difficulty Knobs:
     - min_bouts / max_bouts: Higher counts are harder
     - min_gap_samples: Smaller gaps make bouts harder to distinguish
-    - needle_length_range_ms: Shorter bouts are harder to detect
+    - needle_length_ratio_range: Shorter bouts (smaller ratio) are harder to detect
     - background_purity: Mixed backgrounds add confusion
 
     Answer Type: integer
@@ -103,7 +103,9 @@ class CountingTaskGenerator(BaseTaskGenerator):
 
         # Check how many bouts are available for this activity
         # No PID exclusion needed - we're selecting a different activity
-        min_duration_ms = difficulty.needle_length_range_ms[0]
+        min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
+            self.source_hz
+        )
         available_bouts = self.needle_sampler.count_available_bouts(
             activity=target_activity,
             min_duration_ms=min_duration_ms,
@@ -148,12 +150,9 @@ class CountingTaskGenerator(BaseTaskGenerator):
                 print(f"Warning: No suitable needle found, skipping counting task")
                 continue  # Skip if no suitable needle found
 
-            # Determine needle length
-            max_duration_ms = min(
-                difficulty.needle_length_range_ms[1],
-                needle.duration_ms,
-            )
-            target_duration_ms = int(rng.integers(min_duration_ms, max_duration_ms + 1))
+            # Determine needle length (cap by actual needle duration)
+            actual_max_duration_ms = min(max_duration_ms, needle.duration_ms)
+            target_duration_ms = int(rng.integers(min_duration_ms, actual_max_duration_ms + 1))
             target_samples = int(target_duration_ms * self.source_hz / 1000)
             target_samples = min(target_samples, needle.n_samples)
 
@@ -297,6 +296,38 @@ if __name__ == "__main__":
         default=5,
         help="Maximum bouts to insert",
     )
+    parser.add_argument(
+        "--needle-ratio-min",
+        type=float,
+        default=0.02,
+        help="Minimum needle length as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--needle-ratio-max",
+        type=float,
+        default=0.08,
+        help="Maximum needle length as fraction of context (default: 0.08 = 8%%)",
+    )
+    parser.add_argument(
+        "--needle-position",
+        type=str,
+        choices=["random", "beginning", "middle", "end"],
+        default="random",
+        help="Needle position mode",
+    )
+    parser.add_argument(
+        "--background-purity",
+        type=str,
+        choices=["pure", "mixed"],
+        default="pure",
+        help="Background purity mode",
+    )
+    parser.add_argument(
+        "--min-gap-samples",
+        type=int,
+        default=100,
+        help="Minimum gap between bouts in samples",
+    )
 
     args = parser.parse_args()
 
@@ -308,13 +339,13 @@ if __name__ == "__main__":
 
         difficulty = DifficultyConfig(
             context_length_samples=context_length,
-            needle_position="random",
-            needle_length_range_ms=(3000, 30000),
-            background_purity="pure",
+            needle_position=args.needle_position,
+            needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
+            background_purity=args.background_purity,
             task_specific={
                 "min_bouts": args.min_bouts,
                 "max_bouts": args.max_bouts,
-                "min_gap_samples": 100,
+                "min_gap_samples": args.min_gap_samples,
             },
         )
 

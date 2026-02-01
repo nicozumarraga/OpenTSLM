@@ -49,7 +49,7 @@ class TestLocalizationSampleGeneration:
             difficulty = DifficultyConfig(
                 context_length_samples=10000,
                 needle_position=position_mode,
-                needle_length_range_ms=(3000, 15000),
+                needle_length_ratio_range=(0.03, 0.15),  # 300-1500 samples for 10000 context
                 background_purity="pure",
                 task_specific={"margin_samples": 100},
             )
@@ -85,7 +85,7 @@ class TestLocalizationVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=10000,
             needle_position="random",
-            needle_length_range_ms=(5000, 25000),
+            needle_length_ratio_range=(0.05, 0.25),  # 500-2500 samples for 10000 context
             background_purity="pure",
         )
 
@@ -173,7 +173,7 @@ class TestLocalizationVisualization:
             difficulty = DifficultyConfig(
                 context_length_samples=8000,
                 needle_position=mode,
-                needle_length_range_ms=(3000, 12000),
+                needle_length_ratio_range=(0.04, 0.15),  # 320-1200 samples for 8000 context
                 background_purity="pure",
                 task_specific={"margin_samples": 100},
             )

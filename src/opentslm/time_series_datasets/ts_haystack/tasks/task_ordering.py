@@ -42,7 +42,7 @@ class OrderingTaskGenerator(BaseTaskGenerator):
     - Ensures balanced positive/negative labels
 
     Difficulty Knobs:
-    - needle_length_range_ms: Shorter needles are harder to detect
+    - needle_length_ratio_range: Shorter needles (smaller ratio) are harder to detect
     - min_gap_samples: Smaller gap makes ordering harder
     - context_length_samples: Longer windows require more scanning
     - question_format: "boolean" vs "category"
@@ -122,8 +122,9 @@ class OrderingTaskGenerator(BaseTaskGenerator):
         # =====================================================================
         # Note: No PID exclusion needed - we're selecting activities not in
         # the background, so even if from same participant, data won't overlap
-        min_duration_ms = difficulty.needle_length_range_ms[0]
-        max_duration_ms = difficulty.needle_length_range_ms[1]
+        min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
+            self.source_hz
+        )
 
         needle_a = self.needle_sampler.sample_needle(
             activity=activity_a,
@@ -392,6 +393,38 @@ if __name__ == "__main__":
         default="boolean",
         help="Question format: boolean or category",
     )
+    parser.add_argument(
+        "--needle-ratio-min",
+        type=float,
+        default=0.02,
+        help="Minimum needle length as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--needle-ratio-max",
+        type=float,
+        default=0.10,
+        help="Maximum needle length as fraction of context (default: 0.10 = 10%%)",
+    )
+    parser.add_argument(
+        "--needle-position",
+        type=str,
+        choices=["random", "beginning", "middle", "end"],
+        default="random",
+        help="Needle position mode",
+    )
+    parser.add_argument(
+        "--background-purity",
+        type=str,
+        choices=["pure", "mixed"],
+        default="pure",
+        help="Background purity mode",
+    )
+    parser.add_argument(
+        "--min-gap-samples",
+        type=int,
+        default=100,
+        help="Minimum gap between activities in samples",
+    )
 
     args = parser.parse_args()
 
@@ -403,11 +436,11 @@ if __name__ == "__main__":
 
         difficulty = DifficultyConfig(
             context_length_samples=context_length,
-            needle_position="random",
-            needle_length_range_ms=(3000, 30000),
-            background_purity="pure",
+            needle_position=args.needle_position,
+            needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
+            background_purity=args.background_purity,
             task_specific={
-                "min_gap_samples": 100,
+                "min_gap_samples": args.min_gap_samples,
                 "margin_samples": 100,
                 "question_format": args.question_format,
             },

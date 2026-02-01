@@ -325,7 +325,7 @@ class DifficultyConfig:
         context_length_samples: Window size in samples (1K, 10K, 100K, 1M)
         needle_position: Position mode for needle insertion
         needle_length_distribution: How to sample needle lengths
-        needle_length_range_ms: Min/max needle duration in milliseconds
+        needle_length_ratio_range: Min/max needle duration as fraction of context length
         distractor_density: Distractor configuration
         distractor_count: Number of distractors
         background_purity: Whether background is single or mixed activity
@@ -335,11 +335,40 @@ class DifficultyConfig:
     context_length_samples: int
     needle_position: str = "random"  # "beginning", "middle", "end", "random"
     needle_length_distribution: str = "uniform"  # "uniform", "activity_specific"
-    needle_length_range_ms: Tuple[int, int] = (5000, 300000)  # 5s to 5min
+    needle_length_ratio_range: Tuple[float, float] = (0.02, 0.10)  # 2% to 10% of context
     distractor_density: str = "none"  # "none", "low", "high"
     distractor_count: int = 0
     background_purity: str = "pure"  # "pure", "mixed"
     task_specific: Dict[str, Any] = field(default_factory=dict)
+
+    def get_needle_length_range_samples(self) -> Tuple[int, int]:
+        """
+        Compute needle length range in samples from ratio.
+
+        Returns:
+            Tuple of (min_samples, max_samples) for needle length
+        """
+        min_ratio, max_ratio = self.needle_length_ratio_range
+        return (
+            int(min_ratio * self.context_length_samples),
+            int(max_ratio * self.context_length_samples),
+        )
+
+    def get_needle_length_range_ms(self, source_hz: int = 100) -> Tuple[int, int]:
+        """
+        Compute needle length range in milliseconds from ratio.
+
+        Args:
+            source_hz: Source data sampling frequency in Hz
+
+        Returns:
+            Tuple of (min_ms, max_ms) for needle duration
+        """
+        min_samples, max_samples = self.get_needle_length_range_samples()
+        return (
+            int(min_samples * 1000 / source_hz),
+            int(max_samples * 1000 / source_hz),
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -347,7 +376,7 @@ class DifficultyConfig:
             "context_length_samples": self.context_length_samples,
             "needle_position": self.needle_position,
             "needle_length_distribution": self.needle_length_distribution,
-            "needle_length_range_ms": list(self.needle_length_range_ms),
+            "needle_length_ratio_range": list(self.needle_length_ratio_range),
             "distractor_density": self.distractor_density,
             "distractor_count": self.distractor_count,
             "background_purity": self.background_purity,
@@ -361,7 +390,7 @@ class DifficultyConfig:
             context_length_samples=d["context_length_samples"],
             needle_position=d.get("needle_position", "random"),
             needle_length_distribution=d.get("needle_length_distribution", "uniform"),
-            needle_length_range_ms=tuple(d.get("needle_length_range_ms", (5000, 300000))),
+            needle_length_ratio_range=tuple(d.get("needle_length_ratio_range", (0.02, 0.10))),
             distractor_density=d.get("distractor_density", "none"),
             distractor_count=d.get("distractor_count", 0),
             background_purity=d.get("background_purity", "pure"),

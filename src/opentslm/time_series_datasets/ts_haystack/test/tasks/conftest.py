@@ -216,7 +216,7 @@ def small_difficulty():
     return DifficultyConfig(
         context_length_samples=5000,
         needle_position="random",
-        needle_length_range_ms=(3000, 15000),
+        needle_length_ratio_range=(0.06, 0.30),  # 300-1500 samples for 5000 context
         background_purity="pure",
         task_specific={"margin_samples": 50, "min_gap_samples": 50},
     )
@@ -228,7 +228,7 @@ def medium_difficulty():
     return DifficultyConfig(
         context_length_samples=10000,
         needle_position="random",
-        needle_length_range_ms=(3000, 30000),
+        needle_length_ratio_range=(0.03, 0.30),  # 300-3000 samples for 10000 context
         background_purity="pure",
         task_specific={"margin_samples": 100, "min_gap_samples": 100},
     )

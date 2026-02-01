@@ -30,7 +30,7 @@ class TestMultiHopSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=25000,
             needle_position="random",
-            needle_length_range_ms=(3000, 12000),
+            needle_length_ratio_range=(0.012, 0.048),  # 300-1200 samples for 25000 context
             background_purity="pure",
             task_specific={
                 "k_distribution": [0.5, 0.3, 0.2],  # P(K=1,2,3)
@@ -63,7 +63,7 @@ class TestMultiHopSampleGeneration:
             difficulty = DifficultyConfig(
                 context_length_samples=20000,
                 needle_position="random",
-                needle_length_range_ms=(2000, 8000),
+                needle_length_ratio_range=(0.01, 0.04),  # 200-800 samples for 20000 context
                 background_purity="pure",
                 task_specific={
                     "k_distribution": [1.0, 0.0, 0.0],  # K=1 only for simplicity
@@ -103,7 +103,7 @@ class TestMultiHopSampleGeneration:
             difficulty = DifficultyConfig(
                 context_length_samples=30000,
                 needle_position="random",
-                needle_length_range_ms=(2000, 8000),
+                needle_length_ratio_range=(0.007, 0.027),  # 210-810 samples for 30000 context
                 background_purity="pure",
                 task_specific={
                     "k_distribution": k_dist,
@@ -142,7 +142,7 @@ class TestMultiHopVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=30000,
             needle_position="random",
-            needle_length_range_ms=(3000, 12000),
+            needle_length_ratio_range=(0.01, 0.04),  # 300-1200 samples for 30000 context
             background_purity="pure",
             task_specific={
                 "k_distribution": [0.3, 0.4, 0.3],  # Mix of K values
@@ -252,7 +252,7 @@ class TestMultiHopVisualization:
             difficulty = DifficultyConfig(
                 context_length_samples=35000,
                 needle_position="random",
-                needle_length_range_ms=(2000, 8000),
+                needle_length_ratio_range=(0.006, 0.023),  # 210-805 samples for 35000 context
                 background_purity="pure",
                 task_specific={
                     "k_distribution": k_dist,

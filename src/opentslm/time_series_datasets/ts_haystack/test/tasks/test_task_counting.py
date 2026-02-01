@@ -30,7 +30,7 @@ class TestCountingSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=30000,  # Larger for multiple needles
             needle_position="random",
-            needle_length_range_ms=(3000, 10000),
+            needle_length_ratio_range=(0.01, 0.03),  # 300-900 samples for 30000 context
             background_purity="pure",
             task_specific={
                 "min_bouts": 2,
@@ -65,7 +65,7 @@ class TestCountingSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=40000,
             needle_position="random",
-            needle_length_range_ms=(3000, 8000),
+            needle_length_ratio_range=(0.0075, 0.02),  # 300-800 samples for 40000 context
             background_purity="pure",
             task_specific={
                 "min_bouts": 3,
@@ -112,7 +112,7 @@ class TestCountingVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=40000,
             needle_position="random",
-            needle_length_range_ms=(3000, 12000),
+            needle_length_ratio_range=(0.0075, 0.03),  # 300-1200 samples for 40000 context
             background_purity="pure",
             task_specific={
                 "min_bouts": 3,
@@ -210,7 +210,7 @@ class TestCountingVisualization:
             difficulty = DifficultyConfig(
                 context_length_samples=35000,
                 needle_position="random",
-                needle_length_range_ms=(2000, 6000),
+                needle_length_ratio_range=(0.006, 0.017),  # 210-595 samples for 35000 context
                 background_purity="pure",
                 task_specific={
                     "min_bouts": min_b,

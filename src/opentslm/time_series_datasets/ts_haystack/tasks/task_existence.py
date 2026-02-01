@@ -38,7 +38,7 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
     Difficulty Knobs:
     - context_length_samples: Longer windows are harder to scan
     - background_purity: "mixed" backgrounds have more activity variety
-    - needle_length_range_ms: Shorter needles are harder to detect
+    - needle_length_ratio_range: Shorter needles (smaller ratio) are harder to detect
     - needle_position: Position affects difficulty (edges vs middle)
 
     Answer Type: boolean (Yes/No)
@@ -102,21 +102,20 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
                 # Insert a needle of an activity NOT in background
                 # No PID exclusion needed - we're selecting a different activity,
                 # so even if from same participant, the data won't overlap
+                min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
+                    self.source_hz
+                )
                 needle = self.needle_sampler.sample_needle_for_context(
                     context_activities=background.activities_present,
-                    min_duration_ms=difficulty.needle_length_range_ms[0],
+                    min_duration_ms=min_duration_ms,
                     rng=rng,
                 )
 
                 if needle is not None:
                     target_activity = needle.activity
 
-                    # Determine needle length (sample within range)
-                    min_duration_ms = difficulty.needle_length_range_ms[0]
-                    max_duration_ms = min(
-                        difficulty.needle_length_range_ms[1],
-                        needle.duration_ms,
-                    )
+                    # Determine needle length (sample within range, capped by actual needle)
+                    max_duration_ms = min(max_duration_ms, needle.duration_ms)
                     target_duration_ms = int(rng.integers(
                         min_duration_ms,
                         max_duration_ms + 1,
@@ -249,6 +248,32 @@ if __name__ == "__main__":
         default=1,
         help="Number of parallel jobs",
     )
+    parser.add_argument(
+        "--needle-ratio-min",
+        type=float,
+        default=0.02,
+        help="Minimum needle length as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--needle-ratio-max",
+        type=float,
+        default=0.10,
+        help="Maximum needle length as fraction of context (default: 0.10 = 10%%)",
+    )
+    parser.add_argument(
+        "--needle-position",
+        type=str,
+        choices=["random", "beginning", "middle", "end"],
+        default="random",
+        help="Needle position mode",
+    )
+    parser.add_argument(
+        "--background-purity",
+        type=str,
+        choices=["pure", "mixed"],
+        default="pure",
+        help="Background purity mode",
+    )
 
     args = parser.parse_args()
 
@@ -260,9 +285,9 @@ if __name__ == "__main__":
 
         difficulty = DifficultyConfig(
             context_length_samples=context_length,
-            needle_position="random",
-            needle_length_range_ms=(5000, 60000),
-            background_purity="pure",
+            needle_position=args.needle_position,
+            needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
+            background_purity=args.background_purity,
         )
 
         for split, n_samples in zip(

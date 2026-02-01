@@ -161,8 +161,9 @@ class AntecedentTaskGenerator(BaseTaskGenerator):
         # =====================================================================
         # Step 4: Sample needles for both activities
         # =====================================================================
-        min_duration_ms = difficulty.needle_length_range_ms[0]
-        max_duration_ms = difficulty.needle_length_range_ms[1]
+        min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
+            self.source_hz
+        )
 
         antecedent_needle = self.needle_sampler.sample_needle(
             activity=antecedent_activity,
@@ -428,6 +429,32 @@ if __name__ == "__main__":
         action="store_true",
         help="Use transition matrix for activity pairing",
     )
+    parser.add_argument(
+        "--needle-ratio-min",
+        type=float,
+        default=0.02,
+        help="Minimum needle length as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--needle-ratio-max",
+        type=float,
+        default=0.08,
+        help="Maximum needle length as fraction of context (default: 0.08 = 8%%)",
+    )
+    parser.add_argument(
+        "--needle-position",
+        type=str,
+        choices=["random", "beginning", "middle", "end"],
+        default="random",
+        help="Needle position mode",
+    )
+    parser.add_argument(
+        "--background-purity",
+        type=str,
+        choices=["pure", "mixed"],
+        default="pure",
+        help="Background purity mode",
+    )
 
     args = parser.parse_args()
 
@@ -439,9 +466,9 @@ if __name__ == "__main__":
 
         difficulty = DifficultyConfig(
             context_length_samples=context_length,
-            needle_position="random",
-            needle_length_range_ms=(3000, 30000),
-            background_purity="pure",
+            needle_position=args.needle_position,
+            needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
+            background_purity=args.background_purity,
             task_specific={
                 "adjacency_gap_samples": args.adjacency_gap,
                 "margin_samples": 100,

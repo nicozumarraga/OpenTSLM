@@ -30,7 +30,7 @@ class TestOrderingSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=15000,
             needle_position="random",
-            needle_length_range_ms=(3000, 12000),
+            needle_length_ratio_range=(0.02, 0.08),  # 300-1200 samples for 15000 context
             background_purity="pure",
             task_specific={
                 "min_gap_samples": 100,
@@ -59,7 +59,7 @@ class TestOrderingSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=12000,
             needle_position="random",
-            needle_length_range_ms=(3000, 8000),
+            needle_length_ratio_range=(0.025, 0.067),  # 300-800 samples for 12000 context
             background_purity="pure",
             task_specific={
                 "min_gap_samples": 100,
@@ -92,7 +92,7 @@ class TestOrderingSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=10000,
             needle_position="random",
-            needle_length_range_ms=(3000, 8000),
+            needle_length_ratio_range=(0.03, 0.08),  # 300-800 samples for 10000 context
             background_purity="pure",
             task_specific={"min_gap_samples": 100},
         )
@@ -133,7 +133,7 @@ class TestOrderingVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=12000,
             needle_position="random",
-            needle_length_range_ms=(4000, 15000),
+            needle_length_ratio_range=(0.033, 0.125),  # 400-1500 samples for 12000 context
             background_purity="pure",
             task_specific={"min_gap_samples": 200},
         )
@@ -215,7 +215,7 @@ class TestOrderingVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=10000,
             needle_position="random",
-            needle_length_range_ms=(3000, 10000),
+            needle_length_ratio_range=(0.03, 0.10),  # 300-1000 samples for 10000 context
             background_purity="pure",
             task_specific={"min_gap_samples": 150},
         )

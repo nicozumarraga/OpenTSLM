@@ -30,7 +30,7 @@ class TestAntecedentSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=12000,
             needle_position="random",
-            needle_length_range_ms=(3000, 12000),
+            needle_length_ratio_range=(0.025, 0.10),  # 300-1200 samples for 12000 context
             background_purity="pure",
             task_specific={
                 "adjacency_gap_samples": 10,
@@ -68,7 +68,7 @@ class TestAntecedentSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=10000,
             needle_position="random",
-            needle_length_range_ms=(2000, 8000),
+            needle_length_ratio_range=(0.02, 0.08),  # 200-800 samples for 10000 context
             background_purity="pure",
             task_specific={
                 "adjacency_gap_samples": 20,
@@ -111,7 +111,7 @@ class TestAntecedentVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=12000,
             needle_position="random",
-            needle_length_range_ms=(3000, 15000),
+            needle_length_ratio_range=(0.025, 0.125),  # 300-1500 samples for 12000 context
             background_purity="pure",
             task_specific={
                 "adjacency_gap_samples": 15,
@@ -204,7 +204,7 @@ class TestAntecedentVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=10000,
             needle_position="random",
-            needle_length_range_ms=(3000, 10000),
+            needle_length_ratio_range=(0.03, 0.10),  # 300-1000 samples for 10000 context
             background_purity="pure",
             task_specific={"adjacency_gap_samples": 10},
         )

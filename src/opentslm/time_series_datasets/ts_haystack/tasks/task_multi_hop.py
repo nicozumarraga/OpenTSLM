@@ -55,7 +55,7 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
     - direction_mode: "random", "after_only", "before_only"
     - n_distractors_opposite: Target bouts on opposite side of anchor (confounders)
     - min_gap_samples: Minimum gap between bouts
-    - needle_length_range_ms: Duration range for needles
+    - needle_length_ratio_range: Duration range for needles as fraction of context
 
     Answer Type: time_range
     """
@@ -145,8 +145,9 @@ class MultiHopTaskGenerator(BaseTaskGenerator):
         # =====================================================================
         # Step 4: Sample anchor needle
         # =====================================================================
-        min_duration_ms = difficulty.needle_length_range_ms[0]
-        max_duration_ms = difficulty.needle_length_range_ms[1]
+        min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
+            self.source_hz
+        )
 
         anchor_needle = self.needle_sampler.sample_needle(
             activity=anchor_activity,
@@ -553,6 +554,38 @@ if __name__ == "__main__":
         default=3,
         help="Maximum K value (ordinal)",
     )
+    parser.add_argument(
+        "--needle-ratio-min",
+        type=float,
+        default=0.02,
+        help="Minimum needle length as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--needle-ratio-max",
+        type=float,
+        default=0.06,
+        help="Maximum needle length as fraction of context (default: 0.06 = 6%%)",
+    )
+    parser.add_argument(
+        "--needle-position",
+        type=str,
+        choices=["random", "beginning", "middle", "end"],
+        default="random",
+        help="Needle position mode",
+    )
+    parser.add_argument(
+        "--background-purity",
+        type=str,
+        choices=["pure", "mixed"],
+        default="pure",
+        help="Background purity mode",
+    )
+    parser.add_argument(
+        "--min-gap-samples",
+        type=int,
+        default=100,
+        help="Minimum gap between bouts in samples",
+    )
 
     args = parser.parse_args()
 
@@ -572,11 +605,11 @@ if __name__ == "__main__":
 
         difficulty = DifficultyConfig(
             context_length_samples=context_length,
-            needle_position="random",
-            needle_length_range_ms=(3000, 30000),
-            background_purity="pure",
+            needle_position=args.needle_position,
+            needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
+            background_purity=args.background_purity,
             task_specific={
-                "min_gap_samples": 100,
+                "min_gap_samples": args.min_gap_samples,
                 "margin_samples": 100,
                 "k_distribution": k_distribution,
                 "direction_mode": args.direction_mode,

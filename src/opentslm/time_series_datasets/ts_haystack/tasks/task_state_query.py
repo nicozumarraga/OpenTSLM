@@ -48,7 +48,7 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
     - min_global_states / max_global_states: More states = harder
     - position_mode: "center" (easy) vs "near_boundary" (hard)
     - min_state_duration_samples: Shorter states = harder
-    - needle_length_range_ms: Shorter needles = harder to detect
+    - needle_length_ratio_range: Shorter needles (smaller ratio) = harder to detect
 
     Answer Type: category
     """
@@ -117,9 +117,7 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
         # =====================================================================
         # Step 3: Find valid states (large enough to contain needle)
         # =====================================================================
-        min_needle_samples = int(
-            difficulty.needle_length_range_ms[0] * self.source_hz / 1000
-        )
+        min_needle_samples, max_needle_samples = difficulty.get_needle_length_range_samples()
         # Need state large enough for needle + margins
         required_state_samples = min_needle_samples + 2 * int(
             min_needle_samples * boundary_margin_frac
@@ -163,8 +161,9 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
         # =====================================================================
         # Step 6: Sample needle from bout index
         # =====================================================================
-        min_duration_ms = difficulty.needle_length_range_ms[0]
-        max_duration_ms = difficulty.needle_length_range_ms[1]
+        min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
+            self.source_hz
+        )
 
         needle = self.needle_sampler.sample_needle(
             activity=needle_activity,
@@ -331,6 +330,18 @@ if __name__ == "__main__":
         default="random",
         help="Position mode for needle insertion within state",
     )
+    parser.add_argument(
+        "--needle-ratio-min",
+        type=float,
+        default=0.01,
+        help="Minimum needle length as fraction of context (default: 0.01 = 1%%)",
+    )
+    parser.add_argument(
+        "--needle-ratio-max",
+        type=float,
+        default=0.05,
+        help="Maximum needle length as fraction of context (default: 0.05 = 5%%)",
+    )
 
     args = parser.parse_args()
 
@@ -343,7 +354,7 @@ if __name__ == "__main__":
         difficulty = DifficultyConfig(
             context_length_samples=context_length,
             needle_position="random",
-            needle_length_range_ms=(3000, 30000),
+            needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
             background_purity="mixed",  # Required for this task
             task_specific={
                 "min_global_states": args.min_global_states,

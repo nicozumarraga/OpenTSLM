@@ -147,7 +147,7 @@ generator = MultiHopTaskGenerator.create_with_artifacts(seed=42)
 difficulty = DifficultyConfig(
     context_length_samples=10000,
     needle_position="random",
-    needle_length_range_ms=(3000, 30000),
+    needle_length_ratio_range=(0.03, 0.30),  # 3-30% of context (300-3000 samples)
     background_purity="pure",
     task_specific={
         "k_distribution": [0.4, 0.4, 0.2],  # P(K=1,2,3)
@@ -290,3 +290,21 @@ Each task supports `task_specific` parameters in `DifficultyConfig`:
 - `direction_mode`: "random", "after_only", or "before_only"
 - `n_distractors_opposite`: Distractor targets on opposite side of anchor
 - `min_gap_samples`: Gap between bouts (default: 100)
+
+## Test Suite
+
+  Comprehensive tests validate all task generators, with optional plot generation for visual inspection.
+
+  ```bash
+  # Run all tests
+  pytest src/opentslm/time_series_datasets/ts_haystack/test/ -v
+
+  # Run only task tests (no plots)
+  pytest src/opentslm/time_series_datasets/ts_haystack/test/tasks/ -v -k "not visualize"
+
+  # Generate sample plots only
+  pytest src/opentslm/time_series_datasets/ts_haystack/test/tasks/ -v -k "visualize"
+
+  Plots are saved to test/plots/<task_name>/.
+
+  Note: Tests require Phase 1 artifacts to be built first.

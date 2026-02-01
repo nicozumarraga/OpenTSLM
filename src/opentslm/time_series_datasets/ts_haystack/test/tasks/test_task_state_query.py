@@ -30,7 +30,7 @@ class TestStateQuerySampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=15000,
             needle_position="random",
-            needle_length_range_ms=(3000, 10000),
+            needle_length_ratio_range=(0.02, 0.067),  # 300-1000 samples for 15000 context
             background_purity="mixed",  # Required for state query
             task_specific={
                 "min_global_states": 2,
@@ -60,7 +60,7 @@ class TestStateQuerySampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=12000,
             needle_position="random",
-            needle_length_range_ms=(2000, 8000),
+            needle_length_ratio_range=(0.017, 0.067),  # 200-800 samples for 12000 context
             background_purity="mixed",
             task_specific={
                 "min_global_states": 2,
@@ -103,7 +103,7 @@ class TestStateQueryVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=15000,
             needle_position="random",
-            needle_length_range_ms=(3000, 12000),
+            needle_length_ratio_range=(0.02, 0.08),  # 300-1200 samples for 15000 context
             background_purity="mixed",
             task_specific={
                 "min_global_states": 2,

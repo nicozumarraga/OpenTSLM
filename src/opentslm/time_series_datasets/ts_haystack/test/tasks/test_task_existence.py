@@ -57,7 +57,7 @@ class TestExistenceSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=5000,
             needle_position="random",
-            needle_length_range_ms=(3000, 10000),
+            needle_length_ratio_range=(0.06, 0.20),  # 300-1000 samples for 5000 context
             background_purity="pure",
         )
 
@@ -88,7 +88,7 @@ class TestExistenceSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=8000,
             needle_position="random",
-            needle_length_range_ms=(3000, 15000),
+            needle_length_ratio_range=(0.04, 0.19),  # 320-1520 samples for 8000 context
             background_purity="pure",
         )
 
@@ -132,7 +132,7 @@ class TestExistenceVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=10000,
             needle_position="random",
-            needle_length_range_ms=(5000, 20000),
+            needle_length_ratio_range=(0.05, 0.20),  # 500-2000 samples for 10000 context
             background_purity="pure",
         )
 
@@ -207,7 +207,7 @@ class TestExistenceVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=10000,
             needle_position="random",
-            needle_length_range_ms=(3000, 15000),
+            needle_length_ratio_range=(0.03, 0.15),  # 300-1500 samples for 10000 context
             background_purity="pure",
         )
 
@@ -272,7 +272,7 @@ class TestExistenceVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=8000,
             needle_position="random",
-            needle_length_range_ms=(3000, 15000),
+            needle_length_ratio_range=(0.04, 0.19),  # 320-1520 samples for 8000 context
             background_purity="pure",
         )
 

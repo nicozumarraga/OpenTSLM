@@ -30,7 +30,7 @@ class TestComparisonSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=30000,
             needle_position="random",
-            needle_length_range_ms=(3000, 15000),
+            needle_length_ratio_range=(0.01, 0.05),  # 300-1500 samples for 30000 context
             background_purity="pure",
             task_specific={
                 "min_bouts": 2,
@@ -58,7 +58,7 @@ class TestComparisonSampleGeneration:
         difficulty = DifficultyConfig(
             context_length_samples=35000,
             needle_position="random",
-            needle_length_range_ms=(3000, 20000),
+            needle_length_ratio_range=(0.009, 0.057),  # 315-1995 samples for 35000 context
             background_purity="pure",
             task_specific={
                 "min_bouts": 3,
@@ -98,7 +98,7 @@ class TestComparisonVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=40000,
             needle_position="random",
-            needle_length_range_ms=(4000, 18000),
+            needle_length_ratio_range=(0.01, 0.045),  # 400-1800 samples for 40000 context
             background_purity="pure",
             task_specific={
                 "min_bouts": 3,
@@ -193,7 +193,7 @@ class TestComparisonVisualization:
         difficulty = DifficultyConfig(
             context_length_samples=35000,
             needle_position="random",
-            needle_length_range_ms=(3000, 10000),
+            needle_length_ratio_range=(0.009, 0.029),  # 315-1015 samples for 35000 context
             background_purity="pure",
             task_specific={
                 "min_bouts": 3,
