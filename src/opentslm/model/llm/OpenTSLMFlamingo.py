@@ -44,11 +44,37 @@ class OpenTSLMFlamingo(TimeSeriesLLM):
         decoder_layers_attr_name: str = None,
         freeze_lm_embeddings: bool = False,
         max_patches: int = 50000,
+        trained_patches: int = None,
         **flamingo_kwargs,
     ):
+        """
+        Initialize OpenTSLM Flamingo model.
+
+        Args:
+            device: Device to run the model on ('cuda', 'cpu', 'mps')
+            llm_id: HuggingFace model ID for the language model backbone
+            cross_attn_every_n_layers: Insert cross-attention every N layers
+            decoder_layers_attr_name: Attribute name for decoder layers (auto-detected if None)
+            freeze_lm_embeddings: Whether to freeze LM input embeddings
+            max_patches: Maximum number of patches the positional embeddings can handle.
+                         Should be >= the longest sequence you'll process.
+            trained_patches: Number of patches the model is trained on. Sequences longer
+                             than this will use interpolated positional embeddings.
+                             If None, defaults to max_patches (no interpolation during training).
+                             Set this to match your training context length.
+            **flamingo_kwargs: Additional arguments passed to the Flamingo model
+        """
         super().__init__(device)
         print(f"Flamingo Using device: {self.device}")
-        time_series_encoder = CNNTokenizer(max_patches=max_patches).to(device)
+
+        # If trained_patches not specified, default to max_patches (train on full range)
+        if trained_patches is None:
+            trained_patches = max_patches
+
+        time_series_encoder = CNNTokenizer(
+            max_patches=max_patches,
+            trained_patches=trained_patches,
+        ).to(device)
 
         text_tokenizer = AutoTokenizer.from_pretrained(
             llm_id,

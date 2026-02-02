@@ -9,13 +9,16 @@ TS-Haystack Chain-of-Thought QADataset implementation for OpenTSLM training.
 This module provides a QADataset subclass that formats TS-Haystack benchmark
 data WITH chain-of-thought rationales for training models to reason step-by-step.
 
+IMPORTANT: OpenTSLMFlamingo uses <|endofchunk|> as the answer terminator,
+NOT the tokenizer's eos_token (<|end_of_text|>). This dataset defaults to
+<|endofchunk|> to ensure proper training behavior.
+
 Usage:
     from opentslm.time_series_datasets.ts_haystack.dataset import TSHaystackCoTQADataset
 
-    # Single task with CoT rationales
+    # Single task with CoT rationales (uses default <|endofchunk|> EOS)
     dataset = TSHaystackCoTQADataset(
         split="train",
-        EOS_TOKEN=tokenizer.eos_token,
         tasks=["existence"],
         context_lengths_seconds=[100],
     )
@@ -66,7 +69,9 @@ class TSHaystackCoTQADataset(QADataset):
 
     Args:
         split: Dataset split to load ("train", "test", or "validation")
-        EOS_TOKEN: End-of-sequence token for the model
+        EOS_TOKEN: End-of-sequence token for the model. Defaults to "<|endofchunk|>"
+                   which is the correct terminator for OpenTSLMFlamingo.
+                   WARNING: Do NOT use tokenizer.eos_token (<|end_of_text|>).
         tasks: List of tasks to load (e.g., ["existence", "localization"])
                Use ["all"] to load all tasks
         context_lengths_seconds: List of context lengths in seconds
@@ -77,7 +82,6 @@ class TSHaystackCoTQADataset(QADataset):
     Example:
         >>> dataset = TSHaystackCoTQADataset(
         ...     split="train",
-        ...     EOS_TOKEN="",
         ...     tasks=["existence", "counting"],
         ...     context_lengths_seconds=[100],
         ... )
@@ -86,6 +90,9 @@ class TSHaystackCoTQADataset(QADataset):
         >>> print(sample["direct_answer"])  # Just the final answer
     """
 
+    # OpenTSLMFlamingo uses <|endofchunk|> as the answer terminator
+    FLAMINGO_EOS_TOKEN = "<|endofchunk|>"
+
     # Class-level storage for configuration caching
     # Note: This is separate from TSHaystackQADataset's cache
     _cached_config: Optional[tuple] = None
@@ -93,12 +100,26 @@ class TSHaystackCoTQADataset(QADataset):
     def __init__(
         self,
         split: Literal["train", "test", "validation"],
-        EOS_TOKEN: str,
+        EOS_TOKEN: str = None,
         tasks: List[str] = None,
         context_lengths_seconds: List[int] = None,
         format_sample_str: bool = False,
         time_series_format_function: Callable[[np.ndarray], str] | None = None,
     ):
+        # Default to the correct EOS token for OpenTSLMFlamingo
+        if EOS_TOKEN is None:
+            EOS_TOKEN = self.FLAMINGO_EOS_TOKEN
+        elif EOS_TOKEN != self.FLAMINGO_EOS_TOKEN:
+            # Warn if using a different EOS token (likely tokenizer.eos_token by mistake)
+            if "end_of_text" in EOS_TOKEN or EOS_TOKEN == "":
+                warnings.warn(
+                    f"EOS_TOKEN='{EOS_TOKEN}' may cause training issues. "
+                    f"OpenTSLMFlamingo expects '<|endofchunk|>' as the answer terminator. "
+                    f"Consider using the default EOS_TOKEN or explicitly set "
+                    f"EOS_TOKEN='<|endofchunk|>'.",
+                    UserWarning,
+                    stacklevel=2,
+                )
         # Set defaults
         if tasks is None:
             tasks = ["all"]

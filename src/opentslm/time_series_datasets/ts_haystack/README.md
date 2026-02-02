@@ -471,13 +471,17 @@ Each task supports `task_specific` parameters in `DifficultyConfig`:
 
 After generating the task datasets, use `TSHaystackQADataset` to train OpenTSLM models:
 
+> **IMPORTANT**: The dataset defaults to `<|endofchunk|>` as the EOS token, which is the
+> correct answer terminator for OpenTSLMFlamingo. Do NOT use `tokenizer.eos_token` as it
+> returns `<|end_of_text|>` which will cause training issues (model won't learn when to
+> stop generating).
+
 ```python
 from opentslm.time_series_datasets.ts_haystack import TSHaystackQADataset
 
-# Single task training
+# Single task training (uses default <|endofchunk|> EOS token)
 train_dataset = TSHaystackQADataset(
     split="train",
-    EOS_TOKEN=tokenizer.eos_token,
     tasks=["existence"],
     context_lengths_seconds=[100],  # 100s = 10000 samples at 100Hz
 )
@@ -485,13 +489,12 @@ train_dataset = TSHaystackQADataset(
 # Multi-task training
 train_dataset = TSHaystackQADataset(
     split="train",
-    EOS_TOKEN=tokenizer.eos_token,
     tasks=["existence", "localization", "counting", "ordering"],
     context_lengths_seconds=[100, 1000],  # Multiple context lengths
 )
 
-val_dataset = TSHaystackQADataset(split="validation", EOS_TOKEN=tokenizer.eos_token)
-test_dataset = TSHaystackQADataset(split="test", EOS_TOKEN=tokenizer.eos_token)
+val_dataset = TSHaystackQADataset(split="validation")
+test_dataset = TSHaystackQADataset(split="test")
 
 print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
 print(f"Tasks: {train_dataset.get_tasks()}")
@@ -628,13 +631,15 @@ When running with `--debug`, each sample generates:
 
 Use `TSHaystackCoTQADataset` to train with chain-of-thought reasoning:
 
+> **IMPORTANT**: Like `TSHaystackQADataset`, this defaults to `<|endofchunk|>` as the EOS
+> token. Do NOT use `tokenizer.eos_token`.
+
 ```python
 from opentslm.time_series_datasets.ts_haystack import TSHaystackCoTQADataset
 
-# CoT dataset - answer includes full rationale
+# CoT dataset - answer includes full rationale (uses default <|endofchunk|> EOS)
 train_dataset = TSHaystackCoTQADataset(
     split="train",
-    EOS_TOKEN=tokenizer.eos_token,
     tasks=["existence", "counting"],
     context_lengths_seconds=[100],
 )

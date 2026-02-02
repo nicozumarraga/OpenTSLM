@@ -27,3 +27,4 @@ dist/
 # Model checkpoints and results
 evaluation/results/*/*.json*
 checkpoints/
+results/
