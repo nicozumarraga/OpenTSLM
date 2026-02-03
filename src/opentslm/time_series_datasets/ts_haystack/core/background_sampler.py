@@ -147,6 +147,7 @@ class BackgroundSampler:
         allowed_activities: Optional[Set[str]],
         excluded_activities: Optional[Set[str]],
         rng: np.random.Generator,
+        max_attempts: int = 10,
     ) -> BackgroundSample:
         """
         Sample a pure background (single activity) using bout index.
@@ -157,6 +158,7 @@ class BackgroundSampler:
         3. Get bouts for that activity that are long enough
         4. Sample a bout
         5. Sample a window position within the bout
+        6. If loading fails, retry with a different bout (up to max_attempts)
         """
         # Determine candidate activities
         all_activities = set(self.bout_index.activities)
@@ -190,51 +192,68 @@ class BackgroundSampler:
                 f"Try shorter context_length_samples."
             )
 
-        # Sample an activity
-        activity = activities_with_valid_bouts[
-            rng.integers(0, len(activities_with_valid_bouts))
-        ]
+        # Track failed PIDs to avoid retrying them
+        failed_pids: Set[str] = set()
 
-        # Get valid bouts for this activity
-        valid_bouts = self.bout_index.get_bouts_for_activity(
-            activity, min_duration_ms=context_duration_ms
-        )
+        for attempt in range(max_attempts):
+            # Sample an activity
+            activity = activities_with_valid_bouts[
+                rng.integers(0, len(activities_with_valid_bouts))
+            ]
 
-        # Sample a bout
-        bout_ref = valid_bouts[rng.integers(0, len(valid_bouts))]
+            # Get valid bouts for this activity, excluding failed PIDs
+            all_valid_bouts = self.bout_index.get_bouts_for_activity(
+                activity, min_duration_ms=context_duration_ms
+            )
+            valid_bouts = [b for b in all_valid_bouts if b.pid not in failed_pids]
 
-        # Sample window position within bout
-        max_offset_ms = bout_ref.duration_ms - context_duration_ms
-        offset_ms = rng.integers(0, max_offset_ms + 1) if max_offset_ms > 0 else 0
+            if not valid_bouts:
+                # All bouts for this activity have failed PIDs, try another activity
+                continue
 
-        start_ms = bout_ref.start_ms + offset_ms
-        end_ms = start_ms + context_duration_ms
+            # Sample a bout
+            bout_ref = valid_bouts[rng.integers(0, len(valid_bouts))]
 
-        # Load sensor data
-        x, y, z = self._load_sensor_window(
-            bout_ref.pid, start_ms, end_ms, context_length_samples
-        )
+            # Sample window position within bout
+            max_offset_ms = bout_ref.duration_ms - context_duration_ms
+            offset_ms = rng.integers(0, max_offset_ms + 1) if max_offset_ms > 0 else 0
 
-        if x is None:
-            raise ValueError(f"Failed to load sensor data for {bout_ref.pid}")
+            start_ms = bout_ref.start_ms + offset_ms
+            end_ms = start_ms + context_duration_ms
 
-        # Build activity timeline (entire window is one activity)
-        activity_timeline = [(0.0, 1.0, activity)]
+            # Load sensor data
+            x, y, z = self._load_sensor_window(
+                bout_ref.pid, start_ms, end_ms, context_length_samples
+            )
 
-        # Format time range
-        recording_time_context = self._format_time_range(start_ms, end_ms)
+            if x is None:
+                # Loading failed for this participant, mark as failed and retry
+                failed_pids.add(bout_ref.pid)
+                continue
 
-        return BackgroundSample(
-            pid=bout_ref.pid,
-            start_ms=start_ms,
-            end_ms=end_ms,
-            duration_ms=context_duration_ms,
-            x=x,
-            y=y,
-            z=z,
-            activities_present={activity},
-            activity_timeline=activity_timeline,
-            recording_time_context=recording_time_context,
+            # Build activity timeline (entire window is one activity)
+            activity_timeline = [(0.0, 1.0, activity)]
+
+            # Format time range
+            recording_time_context = self._format_time_range(start_ms, end_ms)
+
+            return BackgroundSample(
+                pid=bout_ref.pid,
+                start_ms=start_ms,
+                end_ms=end_ms,
+                duration_ms=context_duration_ms,
+                x=x,
+                y=y,
+                z=z,
+                activities_present={activity},
+                activity_timeline=activity_timeline,
+                recording_time_context=recording_time_context,
+            )
+
+        # All attempts failed
+        raise ValueError(
+            f"Failed to sample pure background after {max_attempts} attempts. "
+            f"Failed PIDs: {failed_pids}"
         )
 
     def _sample_mixed_background(
