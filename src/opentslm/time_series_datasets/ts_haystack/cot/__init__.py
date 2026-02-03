@@ -11,19 +11,19 @@ Unlike template-based approaches, it uses rich metadata (needle positions, activ
 timestamps) to generate grounded, natural reasoning.
 
 Components:
-    - GeminiCoTClient: Gemini API client with retry logic
+    - OpenAICoTClient: OpenAI API client with retry logic
     - TSHaystackCoTGenerator: Main CoT generation class
     - create_accelerometer_plot: Plot generation for LLM input
     - prompt builders: Task-specific prompt construction
 """
 
-from .llm_client import GeminiCoTClient
+from .llm_client import OpenAICoTClient
 from .plot_generator import create_accelerometer_plot
 from .prompt_builder import create_cot_prompt, format_needle_metadata, get_task_context
 from .cot_generator import TSHaystackCoTGenerator
 
 __all__ = [
-    "GeminiCoTClient",
+    "OpenAICoTClient",
     "TSHaystackCoTGenerator",
     "create_accelerometer_plot",
     "create_cot_prompt",

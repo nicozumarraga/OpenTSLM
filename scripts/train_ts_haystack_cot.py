@@ -251,14 +251,12 @@ def freeze_except_trainable(model: OpenTSLMFlamingo) -> int:
 
 def create_dataloaders(
     config: TrainingConfig,
-    eos_token: str,
 ) -> tuple:
     """
     Create train, validation, and test dataloaders.
 
     Args:
         config: Training configuration
-        eos_token: EOS token from tokenizer
 
     Returns:
         Tuple of (train_loader, val_loader, test_loader)
@@ -267,24 +265,23 @@ def create_dataloaders(
     print(f"  Tasks: {config.tasks}")
     print(f"  Context lengths (seconds): {config.context_lengths_seconds}")
 
-    # Create datasets
+    # Create datasets - use default EOS_TOKEN (<|endofchunk|>) which is correct
+    # for OpenTSLMFlamingo. Do NOT pass model.get_eos_token() as it returns
+    # <|end_of_text|> which causes training issues.
     train_dataset = TSHaystackCoTQADataset(
         split="train",
-        EOS_TOKEN=eos_token,
         tasks=config.tasks,
         context_lengths_seconds=config.context_lengths_seconds,
     )
 
     val_dataset = TSHaystackCoTQADataset(
         split="validation",
-        EOS_TOKEN=eos_token,
         tasks=config.tasks,
         context_lengths_seconds=config.context_lengths_seconds,
     )
 
     test_dataset = TSHaystackCoTQADataset(
         split="test",
-        EOS_TOKEN=eos_token,
         tasks=config.tasks,
         context_lengths_seconds=config.context_lengths_seconds,
     )
@@ -727,9 +724,10 @@ def train(
     freeze_except_trainable(model)
 
     # Create dataloaders
-    train_loader, val_loader, test_loader = create_dataloaders(
-        config, model.get_eos_token()
-    )
+    # NOTE: Don't pass model.get_eos_token() - the dataset defaults to <|endofchunk|>
+    # which is the correct answer terminator for OpenTSLMFlamingo. The model's
+    # tokenizer.eos_token returns <|end_of_text|> which causes training issues.
+    train_loader, val_loader, test_loader = create_dataloaders(config)
 
     # Setup optimizer
     trainable_params = [p for p in model.parameters() if p.requires_grad]

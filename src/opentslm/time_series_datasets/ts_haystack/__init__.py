@@ -73,7 +73,7 @@ from opentslm.time_series_datasets.ts_haystack.dataset import (
 # CoT Rationale Generation
 # =============================================================================
 from opentslm.time_series_datasets.ts_haystack.cot import (
-    GeminiCoTClient,
+    OpenAICoTClient,
     TSHaystackCoTGenerator,
     create_accelerometer_plot,
     create_cot_prompt,
@@ -121,7 +121,7 @@ __all__ = [
     "load_ts_haystack_splits",
     "get_available_tasks",
     # CoT Generation
-    "GeminiCoTClient",
+    "OpenAICoTClient",
     "TSHaystackCoTGenerator",
     "create_accelerometer_plot",
     "create_cot_prompt",

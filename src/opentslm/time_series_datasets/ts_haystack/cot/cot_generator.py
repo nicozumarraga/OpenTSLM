@@ -19,10 +19,10 @@ Key Features:
 Usage:
     from opentslm.time_series_datasets.ts_haystack.cot import (
         TSHaystackCoTGenerator,
-        GeminiCoTClient,
+        OpenAICoTClient,
     )
 
-    client = GeminiCoTClient()
+    client = OpenAICoTClient()
     generator = TSHaystackCoTGenerator(client)
     generator.process_dataset(input_parquet, output_parquet)
 """
@@ -43,8 +43,8 @@ from PIL import Image
 from tqdm import tqdm
 
 from opentslm.time_series_datasets.ts_haystack.cot.llm_client import (
-    GeminiCoTClient,
-    GeminiConfig,
+    OpenAICoTClient,
+    OpenAIConfig,
 )
 from opentslm.time_series_datasets.ts_haystack.cot.plot_generator import (
     create_accelerometer_plot_from_sample,
@@ -88,7 +88,7 @@ class TSHaystackCoTGenerator:
     6. Saves results incrementally
 
     Args:
-        llm_client: Gemini API client for generation
+        llm_client: OpenAI API client for generation
         include_plot: If True, include accelerometer plot in LLM input
         annotate_needles: If True, annotate needle regions in plots
         max_workers: Number of parallel workers for API calls
@@ -98,7 +98,7 @@ class TSHaystackCoTGenerator:
         debug_output_dir: Directory to save debug outputs (required if debug_mode=True)
 
     Example:
-        >>> client = GeminiCoTClient()
+        >>> client = OpenAICoTClient()
         >>> generator = TSHaystackCoTGenerator(client, max_workers=4)
         >>> generator.process_dataset(
         ...     Path("data/capture24/ts_haystack/tasks/100s/existence/train/data.parquet"),
@@ -116,7 +116,7 @@ class TSHaystackCoTGenerator:
 
     def __init__(
         self,
-        llm_client: GeminiCoTClient,
+        llm_client: OpenAICoTClient,
         include_plot: bool = True,
         annotate_needles: bool = True,
         max_workers: int = 4,
@@ -497,7 +497,7 @@ class TSHaystackCoTGenerator:
 
 def save_generation_metadata(
     output_dir: Path,
-    config: GeminiConfig,
+    config: OpenAIConfig,
     all_stats: Dict[str, GenerationStats],
 ) -> None:
     """
@@ -505,7 +505,7 @@ def save_generation_metadata(
 
     Args:
         output_dir: Directory to save metadata
-        config: Gemini client configuration
+        config: OpenAI client configuration
         all_stats: Dict mapping file paths to generation stats
     """
     metadata = {
@@ -543,7 +543,7 @@ if __name__ == "__main__":
             print(f"\nTest input found: {test_input}")
 
             # Initialize client and generator
-            client = GeminiCoTClient()
+            client = OpenAICoTClient()
             generator = TSHaystackCoTGenerator(
                 client,
                 include_plot=True,
@@ -574,7 +574,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"\nError: {e}")
-        print("Make sure GEMINI_API_KEY environment variable is set.")
+        print("Make sure OPENAI_API_KEY environment variable is set.")
 
     print("\n" + "=" * 60)
     print("Test complete!")

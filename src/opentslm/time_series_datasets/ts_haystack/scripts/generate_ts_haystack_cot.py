@@ -13,7 +13,7 @@ benchmark samples. It reads the generated task parquet files and adds a
 
 Prerequisites:
     1. Task datasets must be generated first using generate_ts_haystack_dataset.py
-    2. GEMINI_API_KEY environment variable must be set
+    2. OPENAI_API_KEY environment variable must be set
 
 Usage:
     # Generate CoT for all tasks at 100s context length
@@ -50,8 +50,8 @@ from opentslm.time_series_datasets.ts_haystack.cot.cot_generator import (
     save_generation_metadata,
 )
 from opentslm.time_series_datasets.ts_haystack.cot.llm_client import (
-    GeminiCoTClient,
-    GeminiConfig,
+    OpenAICoTClient,
+    OpenAIConfig,
 )
 
 
@@ -69,6 +69,8 @@ ALL_TASKS = [
     "antecedent",
     "comparison",
     "multi_hop",
+    "anomaly_detection",
+    "anomaly_localization",
 ]
 
 # Available splits
@@ -132,8 +134,8 @@ Examples:
     parser.add_argument(
         "--model",
         type=str,
-        default="gemini-2.5-flash-lite",
-        help="Gemini model to use (default: gemini-2.5-flash-lite)",
+        default="gpt-4.1-mini-2025-04-14",
+        help="OpenAI model to use (default: gpt-4.1-mini-2025-04-14)",
     )
     parser.add_argument(
         "--temperature",
@@ -300,17 +302,17 @@ def main():
         sys.exit(0)
 
     # Check API key
-    if not os.environ.get("GEMINI_API_KEY"):
-        print("\nError: GEMINI_API_KEY environment variable not set")
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("\nError: OPENAI_API_KEY environment variable not set")
         sys.exit(1)
 
     # Initialize LLM client
-    config = GeminiConfig(
+    config = OpenAIConfig(
         model=args.model,
         temperature=args.temperature,
         max_retries=args.max_retries,
     )
-    client = GeminiCoTClient(config)
+    client = OpenAICoTClient(config)
 
     # Determine debug output directory
     debug_output_dir = None

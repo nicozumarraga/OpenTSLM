@@ -4,20 +4,22 @@
 # SPDX-License-Identifier: MIT
 
 """
-Gemini API client for TS-Haystack CoT generation.
+OpenAI API client for TS-Haystack CoT generation.
 
-This module provides a client for the Google Gemini API with:
+This module provides a client for the OpenAI API with:
 - Exponential backoff retry for rate limits and transient errors
 - Structured JSON output for consistent rationale + answer format
-- Support for multimodal prompts (text + image)
+- Support for multimodal prompts (text + image via base64 encoding)
 """
 
+import base64
 import json
 import os
 import random
 import threading
 import time
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Optional
 
 from PIL import Image
@@ -25,44 +27,49 @@ from PIL import Image
 
 # JSON schema for structured CoT response
 COT_RESPONSE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "rationale": {
-            "type": "string",
-            "description": (
-                "Step-by-step reasoning analyzing the accelerometer data patterns. "
-                "Should describe observations about the signal, identify relevant activity bouts, "
-                "and explain how the answer is derived."
-            )
+    "name": "cot_response",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "rationale": {
+                "type": "string",
+                "description": (
+                    "Step-by-step reasoning analyzing the accelerometer data patterns. "
+                    "Should describe observations about the signal, identify relevant activity bouts, "
+                    "and explain how the answer is derived."
+                )
+            },
+            "answer": {
+                "type": "string",
+                "description": "The final answer to the question."
+            }
         },
-        "answer": {
-            "type": "string",
-            "description": "The final answer to the question."
-        }
+        "required": ["rationale", "answer"],
+        "additionalProperties": False
     },
-    "required": ["rationale", "answer"]
+    "strict": True
 }
 
 
 @dataclass
-class GeminiConfig:
-    """Configuration for Gemini API client."""
-    model: str = "gemini-2.5-flash-lite"
+class OpenAIConfig:
+    """Configuration for OpenAI API client."""
+    model: str = "gpt-4.1-mini-2025-04-14"
     max_retries: int = 5
     base_retry_delay: float = 1.0
     max_retry_delay: float = 60.0
     temperature: float = 0.3
 
 
-class GeminiCoTClient:
+class OpenAICoTClient:
     """
-    Client for Google Gemini API calls with exponential backoff retry.
+    Client for OpenAI API calls with exponential backoff retry.
 
     This client is designed for generating chain-of-thought rationales
     for TS-Haystack benchmark samples.
 
     Usage:
-        client = GeminiCoTClient()
+        client = OpenAICoTClient()
         result = client.generate(prompt, image)
         # result = {"rationale": "...", "answer": "..."}
     """
@@ -70,37 +77,43 @@ class GeminiCoTClient:
     # HTTP status codes that should trigger a retry
     RETRYABLE_STATUS_CODES = (429, 500, 502, 503, 504)
 
-    def __init__(self, config: Optional[GeminiConfig] = None):
+    def __init__(self, config: Optional[OpenAIConfig] = None):
         """
-        Initialize the Gemini client.
+        Initialize the OpenAI client.
 
         Args:
             config: Configuration object. If None, uses defaults.
         """
-        self.config = config or GeminiConfig()
+        self.config = config or OpenAIConfig()
         # Use thread-local storage to ensure each thread gets its own client
-        # This prevents "client has been closed" errors when using ThreadPoolExecutor
+        # This prevents issues when using ThreadPoolExecutor
         self._local = threading.local()
 
     def _ensure_client(self):
-        """Lazily initialize the Gemini client (thread-local)."""
+        """Lazily initialize the OpenAI client (thread-local)."""
         if not hasattr(self._local, "client") or self._local.client is None:
             try:
-                from google import genai
+                from openai import OpenAI
             except ImportError:
                 raise ImportError(
-                    "google-generativeai package is required. "
-                    "Install with: pip install google-generativeai"
+                    "openai package is required. "
+                    "Install with: pip install openai"
                 )
 
-            api_key = os.environ.get("GEMINI_API_KEY")
+            api_key = os.environ.get("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError(
-                    "GEMINI_API_KEY environment variable is not set. "
-                    "Please set it to use the Gemini API."
+                    "OPENAI_API_KEY environment variable is not set. "
+                    "Please set it to use the OpenAI API."
                 )
-            self._local.client = genai.Client(api_key=api_key)
-            print(f"Initialized Gemini client with model: {self.config.model}")
+            self._local.client = OpenAI(api_key=api_key)
+            print(f"Initialized OpenAI client with model: {self.config.model}")
+
+    def _pil_to_base64(self, image: Image.Image) -> str:
+        """Convert PIL Image to base64-encoded PNG string."""
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     def _is_retryable(self, exception: Exception) -> bool:
         """Check if an exception should trigger a retry."""
@@ -113,7 +126,8 @@ class GeminiCoTClient:
         # Also retry on connection/timeout/transient errors
         retryable_keywords = [
             "timeout", "connection", "temporarily",
-            "closed", "reset", "unavailable", "overloaded"
+            "closed", "reset", "unavailable", "overloaded",
+            "rate_limit", "rate limit"
         ]
         if any(keyword in error_str for keyword in retryable_keywords):
             return True
@@ -135,7 +149,7 @@ class GeminiCoTClient:
         temperature: Optional[float] = None,
     ) -> Optional[dict]:
         """
-        Generate structured response using Gemini API with retry logic.
+        Generate structured response using OpenAI API with retry logic.
 
         Args:
             prompt: The prompt to send to the model
@@ -147,29 +161,44 @@ class GeminiCoTClient:
         """
         self._ensure_client()
 
-        # Build contents: image first (if provided), then prompt
+        # Build message content
+        content = []
+
+        # Add image first if provided (as base64-encoded PNG)
         if image is not None:
-            contents = [image, prompt]
-        else:
-            contents = prompt
+            base64_image = self._pil_to_base64(image)
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{base64_image}"
+                }
+            })
+
+        # Add text prompt
+        content.append({
+            "type": "text",
+            "text": prompt
+        })
+
+        messages = [{"role": "user", "content": content}]
 
         temp = temperature if temperature is not None else self.config.temperature
 
         last_exception = None
         for attempt in range(self.config.max_retries):
             try:
-                response = self._local.client.models.generate_content(
+                response = self._local.client.chat.completions.create(
                     model=self.config.model,
-                    contents=contents,
-                    config={
-                        "temperature": temp,
-                        "response_mime_type": "application/json",
-                        "response_json_schema": COT_RESPONSE_SCHEMA,
+                    messages=messages,
+                    temperature=temp,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": COT_RESPONSE_SCHEMA
                     }
                 )
 
-                if response.text:
-                    return json.loads(response.text)
+                if response.choices and response.choices[0].message.content:
+                    return json.loads(response.choices[0].message.content)
                 return None
 
             except Exception as e:
@@ -180,8 +209,8 @@ class GeminiCoTClient:
                         f"  [RETRY] Attempt {attempt + 1}/{self.config.max_retries} "
                         f"failed: {e}. Retrying in {delay:.1f}s..."
                     )
-                    # Reinitialize client on "closed" errors
-                    if "closed" in str(e).lower():
+                    # Reinitialize client on connection errors
+                    if "closed" in str(e).lower() or "connection" in str(e).lower():
                         self._local.client = None
                         self._ensure_client()
                     time.sleep(delay)
@@ -190,7 +219,7 @@ class GeminiCoTClient:
                     break
 
         print(
-            f"  [ERROR] Gemini API failed after {self.config.max_retries} "
+            f"  [ERROR] OpenAI API failed after {self.config.max_retries} "
             f"attempts: {last_exception}"
         )
         return None
@@ -247,12 +276,12 @@ class GeminiCoTClient:
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Gemini CoT Client Test")
+    print("OpenAI CoT Client Test")
     print("=" * 60)
 
     # Test client initialization
     try:
-        client = GeminiCoTClient()
+        client = OpenAICoTClient()
 
         # Test simple generation (no image)
         test_prompt = """
@@ -273,7 +302,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"\nError: {e}")
-        print("Make sure GEMINI_API_KEY environment variable is set.")
+        print("Make sure OPENAI_API_KEY environment variable is set.")
 
     print("\n" + "=" * 60)
     print("Test complete!")
