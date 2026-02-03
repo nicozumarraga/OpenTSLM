@@ -436,7 +436,7 @@ if __name__ == "__main__":
         type=str,
         choices=["pure", "mixed", "any"],
         default="pure",
-        help="Background purity mode ('any' randomly selects pure/mixed per sample)",
+        help="Background purity mode ('any' samples random window, adapts to context)",
     )
     parser.add_argument(
         "--min-gap-ratio",

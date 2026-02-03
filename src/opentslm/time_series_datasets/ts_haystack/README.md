@@ -189,7 +189,7 @@ tasks:
 |-----------|-------------|
 | `context_lengths_seconds` | Window sizes in seconds (converted to samples internally) |
 | `needle_length_ratio_range` | Needle duration as fraction of context (e.g., 0.02 = 2%) |
-| `background_purity` | "pure" (single activity), "mixed" (multiple activities), or "any" (randomly selects pure/mixed per sample - recommended for longer contexts to avoid oversampling from long bouts) |
+| `background_purity` | "pure" (single activity), "mixed" (multiple activities), or "any" (samples random window - naturally pure for short contexts, potentially mixed for longer ones) |
 | `needle_position` | "random", "beginning", "middle", or "end" |
 | Task-specific | Each task has additional parameters (see default config) |
 

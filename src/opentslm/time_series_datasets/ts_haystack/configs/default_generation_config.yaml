@@ -30,9 +30,15 @@ context_lengths_seconds:
 # Samples per Split
 # ------------------------------------------------------------------------------
 samples:
-  train: 1000
-  val: 150
-  test: 150
+  # PRODUCTION SETTINGS
+  # train: 1000
+  # val: 150
+  # test: 150
+
+  # DEVELOPMENT SETTINGS
+  train: 100
+  val: 15
+  test: 15
 
 # ------------------------------------------------------------------------------
 # Style Transfer Settings (applied during needle insertion)
@@ -61,7 +67,7 @@ tasks:
     enabled: true
     needle_position: random             # "random", "beginning", "middle", "end"
     needle_length_ratio_range: [0.02, 0.10]  # 2-10% of context
-    background_purity: any              # "pure", "mixed", or "any" (randomly selects pure/mixed per sample)
+    background_purity: any              # "pure", "mixed", or "any" (random window, adapts to context length)
     # Adaptive margin/gap parameters (ratio-based with max cap)
     margin_ratio: 0.02                  # 2% of context length
     margin_max_samples: 100             # Cap at 100 samples for longer contexts

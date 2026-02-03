@@ -340,7 +340,7 @@ class DifficultyConfig:
     needle_length_ratio_range: Tuple[float, float] = (0.02, 0.10)  # 2% to 10% of context
     distractor_density: str = "none"  # "none", "low", "high"
     distractor_count: int = 0
-    background_purity: str = "pure"  # "pure", "mixed", or "any" (randomly selects pure/mixed)
+    background_purity: str = "pure"  # "pure", "mixed", or "any" (random window, adapts to context)
     min_annotation_coverage: float = 0.6  # 60% minimum annotation coverage
     task_specific: Dict[str, Any] = field(default_factory=dict)
 

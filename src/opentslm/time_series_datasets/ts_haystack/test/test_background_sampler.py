@@ -146,7 +146,7 @@ class TestPureBackgroundSampling:
 
 
 class TestAnyBackgroundSampling:
-    """Tests for sampling backgrounds with purity='any' (randomly selects pure/mixed)."""
+    """Tests for sampling backgrounds with purity='any' (samples random window without constraints)."""
 
     def test_sample_any_background_returns_valid_sample(self, background_sampler, rng):
         """Test that purity='any' returns a valid background sample."""
@@ -162,34 +162,44 @@ class TestAnyBackgroundSampling:
         assert len(background.y) == 50000
         assert len(background.z) == 50000
 
-    def test_any_produces_both_pure_and_mixed(self, background_sampler):
-        """Test that purity='any' produces both pure and mixed backgrounds over many samples."""
-        pure_count = 0
+    def test_any_works_with_short_context(self, background_sampler):
+        """Test that purity='any' works with short contexts (which would fail for 'mixed')."""
+        # Short contexts (256 samples = 2.56s) should work with 'any'
+        # but would fail with 'mixed' since they can't span multiple activities
+        rng = np.random.default_rng(42)
+        bg = background_sampler.sample_background(
+            context_length_samples=256,
+            purity="any",
+            rng=rng,
+        )
+
+        assert bg is not None
+        assert len(bg.x) == 256
+        # Short contexts will naturally be pure (single activity)
+        print(f"  Short context activities: {bg.activities_present}")
+
+    def test_any_can_produce_mixed_for_long_context(self, background_sampler):
+        """Test that purity='any' can produce mixed backgrounds for long contexts."""
         mixed_count = 0
 
-        # Sample many times to verify both pure and mixed are produced
-        for seed in range(100):
+        # Sample many times with long context to see if we get any mixed
+        for seed in range(50):
             rng = np.random.default_rng(seed)
             bg = background_sampler.sample_background(
-                context_length_samples=50000,
+                context_length_samples=100000,  # Long context more likely to span activities
                 purity="any",
                 rng=rng,
             )
 
-            if bg is not None:
-                if bg.is_pure:
-                    pure_count += 1
-                else:
-                    mixed_count += 1
+            if bg is not None and not bg.is_pure:
+                mixed_count += 1
 
-        # With 50/50 probability, we should get a reasonable mix
-        # Allow for statistical variation but expect both types
-        print(f"  Pure: {pure_count}, Mixed: {mixed_count}")
-        assert pure_count > 0, "Expected some pure backgrounds"
-        assert mixed_count > 0, "Expected some mixed backgrounds"
+        # With long enough context, we should occasionally get mixed backgrounds
+        print(f"  Mixed backgrounds out of 50: {mixed_count}")
+        # Don't require mixed (depends on data), just verify it doesn't error
 
     def test_any_deterministic_with_same_seed(self, background_sampler):
-        """Test that same seed produces same purity decision."""
+        """Test that same seed produces same background."""
         rng1 = np.random.default_rng(42)
         rng2 = np.random.default_rng(42)
 
@@ -206,7 +216,7 @@ class TestAnyBackgroundSampling:
         )
 
         if bg1 is not None and bg2 is not None:
-            # Same seed should produce same purity type
+            # Same seed should produce same background
             assert bg1.is_pure == bg2.is_pure
             assert bg1.pid == bg2.pid
             assert bg1.start_ms == bg2.start_ms

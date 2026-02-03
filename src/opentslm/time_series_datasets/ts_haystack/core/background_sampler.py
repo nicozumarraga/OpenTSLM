@@ -89,7 +89,8 @@ class BackgroundSampler:
         Args:
             context_length_samples: Window size in samples
             purity: "pure" = single activity, "mixed" = multiple activities,
-                   "any" = randomly selects pure or mixed (50/50)
+                   "any" = samples a random window without activity count constraints
+                         (naturally pure for short contexts, potentially mixed for longer)
             allowed_activities: Only sample from windows with these activities
             excluded_activities: Never sample from windows with these activities
             min_activity_count: Minimum distinct activities in window
@@ -105,16 +106,9 @@ class BackgroundSampler:
         if rng is None:
             rng = np.random.default_rng()
 
-        # Resolve "any" to either "pure" or "mixed" randomly (50/50)
-        resolved_purity: Literal["pure", "mixed"]
-        if purity == "any":
-            resolved_purity = rng.choice(["pure", "mixed"])
-        else:
-            resolved_purity = purity
-
         context_duration_ms = int(context_length_samples * 1000 / self.source_hz)
 
-        if resolved_purity == "pure":
+        if purity == "pure":
             return self._sample_pure_background(
                 context_length_samples=context_length_samples,
                 context_duration_ms=context_duration_ms,
@@ -122,13 +116,26 @@ class BackgroundSampler:
                 excluded_activities=excluded_activities,
                 rng=rng,
             )
-        else:  # resolved_purity == "mixed"
+        elif purity == "mixed":
             return self._sample_mixed_background(
                 context_length_samples=context_length_samples,
                 context_duration_ms=context_duration_ms,
                 allowed_activities=allowed_activities,
                 excluded_activities=excluded_activities,
                 min_activity_count=max(min_activity_count, 2),
+                max_activity_count=max_activity_count,
+                rng=rng,
+            )
+        else:  # purity == "any"
+            # Sample a random window without activity count constraints
+            # This naturally produces pure backgrounds for short contexts
+            # and potentially mixed backgrounds for longer contexts
+            return self._sample_mixed_background(
+                context_length_samples=context_length_samples,
+                context_duration_ms=context_duration_ms,
+                allowed_activities=allowed_activities,
+                excluded_activities=excluded_activities,
+                min_activity_count=1,  # No constraint - accept any window
                 max_activity_count=max_activity_count,
                 rng=rng,
             )
