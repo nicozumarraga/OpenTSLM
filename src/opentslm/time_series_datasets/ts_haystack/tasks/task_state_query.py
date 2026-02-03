@@ -85,18 +85,30 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
 
         # =====================================================================
         # Step 1: Sample a MIXED background (must have multiple activities)
+        # For short contexts where mixed is impossible, fallback to "any"
         # =====================================================================
-        background = self.background_sampler.sample_background(
-            context_length_samples=context_length,
-            purity="mixed",  # Must have multiple activities
-            min_activity_count=min_global_states,
-            max_activity_count=max_global_states,
-            rng=rng,
-        )
+        used_fallback = False
+        try:
+            background = self.background_sampler.sample_background(
+                context_length_samples=context_length,
+                purity="mixed",  # Must have multiple activities
+                min_activity_count=min_global_states,
+                max_activity_count=max_global_states,
+                rng=rng,
+            )
+        except ValueError:
+            # Fallback to "any" for short contexts where mixed is impossible
+            # This allows pure backgrounds for short contexts
+            used_fallback = True
+            background = self.background_sampler.sample_background(
+                context_length_samples=context_length,
+                purity="any",  # Accept any window (including pure)
+                rng=rng,
+            )
 
         if background is None:
             return self._create_invalid_sample(
-                "Failed to sample mixed background",
+                "Failed to sample background",
                 difficulty,
             )
 
@@ -111,9 +123,12 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
         # activity_timeline is List[(start_frac, end_frac, activity)]
         activity_timeline = background.activity_timeline
 
-        if len(activity_timeline) < min_global_states:
+        # For fallback mode (short contexts), accept any number of states >= 1
+        # For normal mode, require min_global_states
+        required_states = 1 if used_fallback else min_global_states
+        if len(activity_timeline) < required_states:
             return self._create_invalid_sample(
-                f"Background has {len(activity_timeline)} states, need >= {min_global_states}",
+                f"Background has {len(activity_timeline)} states, need >= {required_states}",
                 difficulty,
             )
 
