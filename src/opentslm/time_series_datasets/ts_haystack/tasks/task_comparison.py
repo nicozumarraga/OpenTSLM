@@ -89,7 +89,7 @@ class ComparisonTaskGenerator(BaseTaskGenerator):
         context_length = difficulty.context_length_samples
         min_bouts = difficulty.task_specific.get("min_bouts", 2)
         max_bouts = difficulty.task_specific.get("max_bouts", 4)
-        min_duration_diff_ms = difficulty.task_specific.get("min_duration_diff_ms", 2000)
+        min_duration_diff_ms = difficulty.get_effective_min_duration_diff_ms(self.source_hz)
         min_gap_samples = difficulty.get_effective_min_gap_samples()
         margin_samples = difficulty.get_effective_margin_samples()
 
@@ -434,9 +434,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--background-purity",
         type=str,
-        choices=["pure", "mixed"],
+        choices=["pure", "mixed", "any"],
         default="pure",
-        help="Background purity mode",
+        help="Background purity mode ('any' randomly selects pure/mixed per sample)",
     )
     parser.add_argument(
         "--min-gap-ratio",
@@ -479,7 +479,8 @@ if __name__ == "__main__":
             task_specific={
                 "min_bouts": args.min_bouts,
                 "max_bouts": args.max_bouts,
-                "min_duration_diff_ms": args.min_duration_diff,
+                "min_duration_diff_ratio": 0.02,
+                "min_duration_diff_max_ms": args.min_duration_diff,
                 "min_gap_ratio": args.min_gap_ratio,
                 "min_gap_max_samples": args.min_gap_max_samples,
                 "margin_ratio": args.margin_ratio,

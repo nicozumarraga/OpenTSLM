@@ -102,7 +102,7 @@ class GenerationConfig:
     source_hz: int = 100
 
     # What to generate
-    context_lengths_seconds: List[int] = field(default_factory=lambda: [100])
+    context_lengths_seconds: List[float] = field(default_factory=lambda: [100])
     samples_per_split: Dict[str, int] = field(
         default_factory=lambda: {"train": 10000, "val": 1000, "test": 1000}
     )
@@ -171,7 +171,7 @@ class GenerationConfig:
 
     def get_context_lengths_samples(self) -> List[int]:
         """Convert context lengths from seconds to samples."""
-        return [s * self.source_hz for s in self.context_lengths_seconds]
+        return [int(s * self.source_hz) for s in self.context_lengths_seconds]
 
     def get_difficulty_config(
         self,

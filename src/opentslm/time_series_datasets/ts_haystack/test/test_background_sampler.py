@@ -141,6 +141,78 @@ class TestPureBackgroundSampling:
 
 
 # =============================================================================
+# Test "Any" Background Sampling
+# =============================================================================
+
+
+class TestAnyBackgroundSampling:
+    """Tests for sampling backgrounds with purity='any' (randomly selects pure/mixed)."""
+
+    def test_sample_any_background_returns_valid_sample(self, background_sampler, rng):
+        """Test that purity='any' returns a valid background sample."""
+        background = background_sampler.sample_background(
+            context_length_samples=50000,
+            purity="any",
+            rng=rng,
+        )
+
+        assert background is not None
+        assert isinstance(background, BackgroundSample)
+        assert len(background.x) == 50000
+        assert len(background.y) == 50000
+        assert len(background.z) == 50000
+
+    def test_any_produces_both_pure_and_mixed(self, background_sampler):
+        """Test that purity='any' produces both pure and mixed backgrounds over many samples."""
+        pure_count = 0
+        mixed_count = 0
+
+        # Sample many times to verify both pure and mixed are produced
+        for seed in range(100):
+            rng = np.random.default_rng(seed)
+            bg = background_sampler.sample_background(
+                context_length_samples=50000,
+                purity="any",
+                rng=rng,
+            )
+
+            if bg is not None:
+                if bg.is_pure:
+                    pure_count += 1
+                else:
+                    mixed_count += 1
+
+        # With 50/50 probability, we should get a reasonable mix
+        # Allow for statistical variation but expect both types
+        print(f"  Pure: {pure_count}, Mixed: {mixed_count}")
+        assert pure_count > 0, "Expected some pure backgrounds"
+        assert mixed_count > 0, "Expected some mixed backgrounds"
+
+    def test_any_deterministic_with_same_seed(self, background_sampler):
+        """Test that same seed produces same purity decision."""
+        rng1 = np.random.default_rng(42)
+        rng2 = np.random.default_rng(42)
+
+        bg1 = background_sampler.sample_background(
+            context_length_samples=50000,
+            purity="any",
+            rng=rng1,
+        )
+
+        bg2 = background_sampler.sample_background(
+            context_length_samples=50000,
+            purity="any",
+            rng=rng2,
+        )
+
+        if bg1 is not None and bg2 is not None:
+            # Same seed should produce same purity type
+            assert bg1.is_pure == bg2.is_pure
+            assert bg1.pid == bg2.pid
+            assert bg1.start_ms == bg2.start_ms
+
+
+# =============================================================================
 # Test Mixed Background Sampling
 # =============================================================================
 

@@ -37,7 +37,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -54,6 +54,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from opentslm.model.llm.OpenTSLMFlamingo import OpenTSLMFlamingo
 from opentslm.model_config import PATCH_SIZE
 from opentslm.time_series_datasets.ts_haystack import TSHaystackCoTQADataset
+from opentslm.time_series_datasets.ts_haystack.dataset.ts_haystack_qa_loader import (
+    get_available_context_lengths,
+)
 from opentslm.time_series_datasets.util import (
     extend_time_series_to_match_patch_size_and_aggregate,
 )
@@ -73,7 +76,7 @@ class TrainingConfig:
 
     # Data
     tasks: List[str] = None  # None = all tasks
-    context_lengths_seconds: List[int] = None  # None = [100]
+    context_lengths_seconds: List[Union[str, float, int]] = None  # None = ["all"] (auto-discover)
     max_samples: Optional[int] = None  # None = use all samples
 
     # Training
@@ -98,7 +101,7 @@ class TrainingConfig:
         if self.tasks is None:
             self.tasks = ["all"]
         if self.context_lengths_seconds is None:
-            self.context_lengths_seconds = [100]
+            self.context_lengths_seconds = ["all"]  # Auto-discover from filesystem
         self.output_dir = Path(self.output_dir)
 
 
@@ -671,6 +674,17 @@ def train(
     """
     device = get_device()
 
+    # Resolve "all" context lengths early (needed for model initialization)
+    if config.context_lengths_seconds == ["all"] or "all" in config.context_lengths_seconds:
+        resolved_lengths = get_available_context_lengths(use_cot=True)
+        if not resolved_lengths:
+            raise ValueError(
+                "No context lengths found in CoT directory. "
+                "Make sure CoT datasets have been generated first."
+            )
+        config.context_lengths_seconds = resolved_lengths
+        print(f"Auto-discovered context lengths: {resolved_lengths}")
+
     # Create unique run directory with timestamp (unless resuming)
     if config.resume_from is None:
         if config.run_name:
@@ -933,10 +947,10 @@ def main():
     )
     parser.add_argument(
         "--context-lengths",
-        type=int,
+        type=str,
         nargs="+",
-        default=[100],
-        help="Context lengths in seconds (default: 100)"
+        default=["all"],
+        help="Context lengths in seconds, or 'all' to auto-discover (default: all)"
     )
     parser.add_argument(
         "--max-samples",
@@ -995,13 +1009,19 @@ def main():
 
     args = parser.parse_args()
 
+    # Parse context lengths - can be "all" or numeric values
+    context_lengths = args.context_lengths
+    if "all" not in context_lengths:
+        # Convert numeric strings to floats
+        context_lengths = [float(x) for x in context_lengths]
+
     # Create config
     config = TrainingConfig(
         llm_id=args.llm_id,
         hf_checkpoint_repo=args.from_hf,
         hf_checkpoint_file=args.hf_checkpoint_file,
         tasks=args.tasks if args.tasks else ["all"],
-        context_lengths_seconds=args.context_lengths,
+        context_lengths_seconds=context_lengths,
         max_samples=args.max_samples,
         batch_size=args.batch_size,
         epochs=args.epochs,

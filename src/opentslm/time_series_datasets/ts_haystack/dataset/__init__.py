@@ -15,13 +15,20 @@ Components:
     - load_ts_haystack_splits: Loader function for parquet data
 """
 
-from .ts_haystack_qa_loader import load_ts_haystack_splits, get_available_tasks
+from .ts_haystack_qa_loader import (
+    ALL_CONTEXT_LENGTHS,
+    load_ts_haystack_splits,
+    get_available_tasks,
+    get_available_context_lengths,
+)
 from .TSHaystackQADataset import TSHaystackQADataset
 from .TSHaystackCoTQADataset import TSHaystackCoTQADataset
 
 __all__ = [
+    "ALL_CONTEXT_LENGTHS",
     "TSHaystackQADataset",
     "TSHaystackCoTQADataset",
     "load_ts_haystack_splits",
     "get_available_tasks",
+    "get_available_context_lengths",
 ]

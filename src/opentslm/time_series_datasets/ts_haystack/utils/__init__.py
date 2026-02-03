@@ -6,8 +6,13 @@ Utilities for TS-Haystack benchmark.
 
 - Timestamp conversion utilities
 - Position sampling utilities
+- Context length utilities
 """
 
+from opentslm.time_series_datasets.ts_haystack.utils.context_utils import (
+    format_context_dir,
+    parse_context_dir,
+)
 from opentslm.time_series_datasets.ts_haystack.utils.timestamp_utils import (
     compute_duration_string,
     format_time_range,
@@ -28,6 +33,9 @@ from opentslm.time_series_datasets.ts_haystack.utils.position_utils import (
 )
 
 __all__ = [
+    # Context utilities
+    "format_context_dir",
+    "parse_context_dir",
     # Timestamp utilities
     "parse_time_string",
     "format_timestamp",

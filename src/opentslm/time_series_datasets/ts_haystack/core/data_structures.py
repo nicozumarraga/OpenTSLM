@@ -340,7 +340,7 @@ class DifficultyConfig:
     needle_length_ratio_range: Tuple[float, float] = (0.02, 0.10)  # 2% to 10% of context
     distractor_density: str = "none"  # "none", "low", "high"
     distractor_count: int = 0
-    background_purity: str = "pure"  # "pure", "mixed"
+    background_purity: str = "pure"  # "pure", "mixed", or "any" (randomly selects pure/mixed)
     min_annotation_coverage: float = 0.6  # 60% minimum annotation coverage
     task_specific: Dict[str, Any] = field(default_factory=dict)
 
@@ -410,6 +410,46 @@ class DifficultyConfig:
         ratio = self.task_specific.get("min_gap_ratio", 0.02)
         max_cap = self.task_specific.get("min_gap_max_samples", 100)
         return min(int(self.context_length_samples * ratio), max_cap)
+
+    def get_effective_min_state_duration_samples(self) -> int:
+        """
+        Compute effective min state duration for State Query task.
+
+        Uses ratio-based computation with a maximum cap to allow adaptive
+        state durations for short context lengths while maintaining reasonable
+        bounds for longer contexts.
+
+        Config parameters (in task_specific):
+            min_state_duration_ratio: State duration as fraction of context (default: 0.20 = 20%)
+            min_state_duration_max_samples: Maximum duration in samples (default: 500)
+
+        Returns:
+            Effective min state duration in samples: min(context_length * ratio, max_cap)
+        """
+        ratio = self.task_specific.get("min_state_duration_ratio", 0.20)
+        max_cap = self.task_specific.get("min_state_duration_max_samples", 500)
+        return min(int(self.context_length_samples * ratio), max_cap)
+
+    def get_effective_min_duration_diff_ms(self, source_hz: int = 100) -> int:
+        """
+        Compute effective min duration diff for Comparison task.
+
+        Uses ratio-based computation with a maximum cap to allow adaptive
+        duration differences for short context lengths while maintaining
+        reasonable bounds for longer contexts.
+
+        Config parameters (in task_specific):
+            min_duration_diff_ratio: Duration diff as fraction of context (default: 0.02 = 2%)
+            min_duration_diff_max_ms: Maximum diff in milliseconds (default: 2000)
+
+        Returns:
+            Effective min duration diff in milliseconds: min(context_length * ratio * ms_per_sample, max_cap)
+        """
+        ratio = self.task_specific.get("min_duration_diff_ratio", 0.02)
+        max_cap = self.task_specific.get("min_duration_diff_max_ms", 2000)
+        ratio_based_samples = int(self.context_length_samples * ratio)
+        ratio_based_ms = int(ratio_based_samples * 1000 / source_hz)
+        return min(ratio_based_ms, max_cap)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""

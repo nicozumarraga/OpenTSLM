@@ -34,18 +34,22 @@ Usage:
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import polars as pl
 from datasets import Dataset
 
 from opentslm.time_series_datasets.constants import RAW_DATA
+from opentslm.time_series_datasets.ts_haystack.utils import format_context_dir
 
 
 # Default data directories
 TS_HAYSTACK_TASKS_DIR = os.path.join(RAW_DATA, "capture24", "ts_haystack", "tasks")
 TS_HAYSTACK_COT_DIR = os.path.join(RAW_DATA, "capture24", "ts_haystack", "cot")
+
+# Sentinel value for "all context lengths"
+ALL_CONTEXT_LENGTHS = "all"
 
 # All available tasks
 ALL_TASKS = [
@@ -84,6 +88,37 @@ COT_COLUMN = "rationale"
 def get_available_tasks() -> List[str]:
     """Return list of available task names."""
     return list(ALL_TASKS)
+
+
+def get_available_context_lengths(use_cot: bool = False, base_dir: Optional[Path] = None) -> List[float]:
+    """
+    Discover available context lengths from filesystem.
+
+    Args:
+        use_cot: If True, look in CoT directory, else tasks directory
+        base_dir: Optional override for base directory
+
+    Returns:
+        List of context lengths in seconds, sorted ascending
+    """
+    data_dir = _get_data_dir(use_cot, base_dir)
+
+    if not data_dir.exists():
+        return []
+
+    context_lengths = []
+    for item in data_dir.iterdir():
+        if item.is_dir() and item.name.endswith("s"):
+            # Parse directory name like "100s" or "2_56s" -> 100.0 or 2.56
+            try:
+                # Replace underscore with decimal point for names like "2_56s"
+                name = item.name[:-1]  # Remove trailing 's'
+                name = name.replace("_", ".")
+                context_lengths.append(float(name))
+            except ValueError:
+                continue
+
+    return sorted(context_lengths)
 
 
 def _get_data_dir(use_cot: bool, base_dir: Optional[Path] = None) -> Path:
@@ -157,7 +192,7 @@ def _select_columns(df: pl.DataFrame, use_cot: bool) -> pl.DataFrame:
 
 def load_ts_haystack_splits(
     tasks: List[str],
-    context_lengths_seconds: List[int],
+    context_lengths_seconds: List[Union[str, float, int]],
     data_dir: Optional[Path] = None,
     use_cot: bool = False,
 ) -> Tuple[Dataset, Dataset, Dataset]:
@@ -172,6 +207,7 @@ def load_ts_haystack_splits(
                Use ["all"] to load all tasks
         context_lengths_seconds: List of context lengths in seconds
                                  (e.g., [100] for 10000 samples at 100Hz)
+                                 Use ["all"] to load all available context lengths
         data_dir: Base data directory. If None, uses default based on use_cot
         use_cot: If True, load from cot/ directory (with rationale column)
 
@@ -188,6 +224,17 @@ def load_ts_haystack_splits(
     # Resolve tasks
     if tasks == ["all"] or "all" in tasks:
         tasks = ALL_TASKS
+
+    # Resolve context lengths - support "all" to auto-discover
+    if context_lengths_seconds == ["all"] or "all" in context_lengths_seconds:
+        context_lengths_seconds = get_available_context_lengths(use_cot, data_dir)
+        if not context_lengths_seconds:
+            raise ValueError(
+                f"No context length directories found in "
+                f"{_get_data_dir(use_cot, data_dir)}. "
+                f"Make sure datasets have been generated first."
+            )
+        print(f"Auto-discovered context lengths: {context_lengths_seconds}")
 
     # Validate tasks
     for task in tasks:
@@ -208,7 +255,7 @@ def load_ts_haystack_splits(
 
     # Load parquet files
     for ctx_seconds in context_lengths_seconds:
-        ctx_dir = f"{ctx_seconds}s"
+        ctx_dir = format_context_dir(ctx_seconds)
 
         for task in tasks:
             for split in ["train", "val", "test"]:

@@ -170,7 +170,7 @@ tasks:
     enabled: true
     needle_position: random   # "random", "beginning", "middle", "end"
     needle_length_ratio_range: [0.02, 0.10]  # 2-10% of context
-    background_purity: pure   # "pure" or "mixed"
+    background_purity: pure   # "pure", "mixed", or "any"
     margin_samples: 100       # Task-specific parameter
 
   counting:
@@ -189,7 +189,7 @@ tasks:
 |-----------|-------------|
 | `context_lengths_seconds` | Window sizes in seconds (converted to samples internally) |
 | `needle_length_ratio_range` | Needle duration as fraction of context (e.g., 0.02 = 2%) |
-| `background_purity` | "pure" (single activity) or "mixed" (multiple activities) |
+| `background_purity` | "pure" (single activity), "mixed" (multiple activities), or "any" (randomly selects pure/mixed per sample - recommended for longer contexts to avoid oversampling from long bouts) |
 | `needle_position` | "random", "beginning", "middle", or "end" |
 | Task-specific | Each task has additional parameters (see default config) |
 

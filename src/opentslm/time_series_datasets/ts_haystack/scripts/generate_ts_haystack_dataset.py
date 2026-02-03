@@ -55,6 +55,7 @@ from opentslm.time_series_datasets.ts_haystack.tasks import (
     get_task_generator,
     list_available_tasks,
 )
+from opentslm.time_series_datasets.ts_haystack.utils import format_context_dir
 
 
 def setup_components(
@@ -139,7 +140,7 @@ def generate_for_task(
     Returns:
         Dictionary with generation statistics
     """
-    context_s = context_length_samples // config.source_hz
+    context_s = context_length_samples / config.source_hz
     print(f"\n{'='*60}")
     print(f"Task: {task_name} | Context: {context_s}s ({context_length_samples} samples)")
     print(f"{'='*60}")
@@ -176,7 +177,7 @@ def generate_for_task(
 
         # Check if output exists
         output_path = (
-            config.output_dir / f"{context_s}s" / task_name / split / "data.parquet"
+            config.output_dir / format_context_dir(context_s) / task_name / split / "data.parquet"
         )
 
         if output_path.exists() and not config.overwrite:
@@ -211,7 +212,7 @@ def generate_for_task(
         }
 
     # Save task-specific metadata
-    task_metadata_path = config.output_dir / f"{context_s}s" / task_name / "metadata.json"
+    task_metadata_path = config.output_dir / format_context_dir(context_s) / task_name / "metadata.json"
     task_metadata_path.parent.mkdir(parents=True, exist_ok=True)
     task_metadata = {
         "task_name": task_name,
@@ -309,9 +310,9 @@ Examples:
     )
     parser.add_argument(
         "--context-lengths",
-        type=int,
+        type=float,
         nargs="+",
-        help="Override: Context lengths in seconds (space-separated)",
+        help="Override: Context lengths in seconds (space-separated, supports floats like 2.56)",
     )
     parser.add_argument(
         "--overwrite",
@@ -403,7 +404,7 @@ Examples:
                 for split, n in config.samples_per_split.items():
                     output_path = (
                         config.output_dir
-                        / f"{ctx_s}s"
+                        / format_context_dir(ctx_s)
                         / task_name
                         / split
                         / "data.parquet"
@@ -431,7 +432,7 @@ Examples:
     all_stats = []
 
     for context_s in config.context_lengths_seconds:
-        context_length_samples = context_s * config.source_hz
+        context_length_samples = int(context_s * config.source_hz)
 
         for task_name in enabled_tasks:
             try:

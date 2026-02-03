@@ -53,6 +53,7 @@ from opentslm.time_series_datasets.ts_haystack.cot.llm_client import (
     OpenAICoTClient,
     OpenAIConfig,
 )
+from opentslm.time_series_datasets.ts_haystack.utils import format_context_dir
 
 
 # Default paths
@@ -110,10 +111,10 @@ Examples:
     # What to process
     parser.add_argument(
         "--context-lengths",
-        type=int,
+        type=float,
         nargs="+",
         default=[100],
-        help="Context lengths in seconds (default: 100)",
+        help="Context lengths in seconds (default: 100, supports floats like 2.56)",
     )
     parser.add_argument(
         "--tasks",
@@ -213,7 +214,7 @@ Examples:
 
 def find_input_files(
     input_dir: Path,
-    context_lengths: List[int],
+    context_lengths: List[float],
     tasks: List[str],
     splits: List[str],
 ) -> List[Dict]:
@@ -226,7 +227,7 @@ def find_input_files(
     files = []
 
     for ctx_seconds in context_lengths:
-        ctx_dir = f"{ctx_seconds}s"
+        ctx_dir = format_context_dir(ctx_seconds)
 
         for task in tasks:
             for split in splits:
@@ -345,7 +346,7 @@ def main():
         # Build output path with same structure
         output_path = (
             output_dir
-            / f"{file_info['context_length']}s"
+            / format_context_dir(file_info['context_length'])
             / file_info["task"]
             / file_info["split"]
             / "data.parquet"

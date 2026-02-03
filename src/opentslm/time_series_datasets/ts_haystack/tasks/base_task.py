@@ -35,6 +35,7 @@ from opentslm.time_series_datasets.ts_haystack.core import (
     TransitionMatrix,
 )
 from opentslm.time_series_datasets.ts_haystack.utils import (
+    format_context_dir,
     samples_to_timestamp,
     sample_position_with_mode,
     find_non_overlapping_position,
@@ -599,8 +600,8 @@ class BaseTaskGenerator(ABC):
             output_dir = TS_HAYSTACK_DATA_DIR / "tasks"
 
         # Convert samples to seconds for human-readable directory name
-        context_s = context_length // self.source_hz
-        task_dir = output_dir / f"{context_s}s" / self.task_name / split
+        context_s = context_length / self.source_hz
+        task_dir = output_dir / format_context_dir(context_s) / self.task_name / split
         task_dir.mkdir(parents=True, exist_ok=True)
 
         # Convert samples to dictionaries
@@ -645,8 +646,8 @@ class BaseTaskGenerator(ABC):
             output_dir = TS_HAYSTACK_DATA_DIR / "tasks"
 
         # Convert samples to seconds for human-readable directory name
-        context_s = context_length // self.source_hz
-        task_dir = output_dir / f"{context_s}s" / self.task_name
+        context_s = context_length / self.source_hz
+        task_dir = output_dir / format_context_dir(context_s) / self.task_name
         task_dir.mkdir(parents=True, exist_ok=True)
 
         metadata = {

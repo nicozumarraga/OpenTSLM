@@ -76,7 +76,7 @@ class BackgroundSampler:
     def sample_background(
         self,
         context_length_samples: int,
-        purity: Literal["pure", "mixed"] = "pure",
+        purity: Literal["pure", "mixed", "any"] = "pure",
         allowed_activities: Optional[Set[str]] = None,
         excluded_activities: Optional[Set[str]] = None,
         min_activity_count: int = 1,
@@ -88,7 +88,8 @@ class BackgroundSampler:
 
         Args:
             context_length_samples: Window size in samples
-            purity: "pure" = single activity, "mixed" = multiple activities
+            purity: "pure" = single activity, "mixed" = multiple activities,
+                   "any" = randomly selects pure or mixed (50/50)
             allowed_activities: Only sample from windows with these activities
             excluded_activities: Never sample from windows with these activities
             min_activity_count: Minimum distinct activities in window
@@ -104,9 +105,16 @@ class BackgroundSampler:
         if rng is None:
             rng = np.random.default_rng()
 
+        # Resolve "any" to either "pure" or "mixed" randomly (50/50)
+        resolved_purity: Literal["pure", "mixed"]
+        if purity == "any":
+            resolved_purity = rng.choice(["pure", "mixed"])
+        else:
+            resolved_purity = purity
+
         context_duration_ms = int(context_length_samples * 1000 / self.source_hz)
 
-        if purity == "pure":
+        if resolved_purity == "pure":
             return self._sample_pure_background(
                 context_length_samples=context_length_samples,
                 context_duration_ms=context_duration_ms,
@@ -114,7 +122,7 @@ class BackgroundSampler:
                 excluded_activities=excluded_activities,
                 rng=rng,
             )
-        else:
+        else:  # resolved_purity == "mixed"
             return self._sample_mixed_background(
                 context_length_samples=context_length_samples,
                 context_duration_ms=context_duration_ms,

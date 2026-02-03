@@ -456,9 +456,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--background-purity",
         type=str,
-        choices=["pure", "mixed"],
+        choices=["pure", "mixed", "any"],
         default="pure",
-        help="Background purity mode",
+        help="Background purity mode ('any' randomly selects pure/mixed per sample)",
     )
 
     parser.add_argument(

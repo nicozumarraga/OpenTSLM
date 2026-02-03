@@ -30,7 +30,7 @@ Usage:
 """
 
 import warnings
-from typing import Callable, List, Literal, Optional, Tuple
+from typing import Callable, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -41,6 +41,7 @@ from tqdm.auto import tqdm
 from opentslm.prompt.text_time_series_prompt import TextTimeSeriesPrompt
 from opentslm.time_series_datasets.QADataset import QADataset
 from opentslm.time_series_datasets.ts_haystack.dataset.ts_haystack_qa_loader import (
+    ALL_CONTEXT_LENGTHS,
     ALL_TASKS,
     load_ts_haystack_splits,
 )
@@ -102,7 +103,7 @@ class TSHaystackCoTQADataset(QADataset):
         split: Literal["train", "test", "validation"],
         EOS_TOKEN: str = None,
         tasks: List[str] = None,
-        context_lengths_seconds: List[int] = None,
+        context_lengths_seconds: List[Union[str, float, int]] = None,
         format_sample_str: bool = False,
         time_series_format_function: Callable[[np.ndarray], str] | None = None,
     ):
@@ -120,11 +121,11 @@ class TSHaystackCoTQADataset(QADataset):
                     UserWarning,
                     stacklevel=2,
                 )
-        # Set defaults
+        # Set defaults - use "all" for both tasks and context lengths
         if tasks is None:
             tasks = ["all"]
         if context_lengths_seconds is None:
-            context_lengths_seconds = [100]
+            context_lengths_seconds = ["all"]
 
         # Resolve "all" tasks
         if "all" in tasks:
@@ -132,7 +133,8 @@ class TSHaystackCoTQADataset(QADataset):
         else:
             self.tasks = list(tasks)
 
-        self.context_lengths_seconds = list(context_lengths_seconds)
+        # Store context lengths (may be ["all"] - resolved during loading)
+        self.context_lengths_seconds = context_lengths_seconds
 
         # Check for configuration mismatch with cached data
         self._check_cache_config()

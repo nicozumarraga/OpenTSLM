@@ -79,9 +79,7 @@ class StateQueryTaskGenerator(BaseTaskGenerator):
         context_length = difficulty.context_length_samples
         min_global_states = difficulty.task_specific.get("min_global_states", 2)
         max_global_states = difficulty.task_specific.get("max_global_states", 5)
-        min_state_duration_samples = difficulty.task_specific.get(
-            "min_state_duration_samples", 500
-        )
+        min_state_duration_samples = difficulty.get_effective_min_state_duration_samples()
         position_mode = difficulty.task_specific.get("position_mode", "random")
         boundary_margin_frac = difficulty.task_specific.get("boundary_margin_frac", 0.1)
 
@@ -365,7 +363,8 @@ if __name__ == "__main__":
                 "min_global_states": args.min_global_states,
                 "max_global_states": args.max_global_states,
                 "position_mode": args.position_mode,
-                "min_state_duration_samples": 500,
+                "min_state_duration_ratio": 0.20,
+                "min_state_duration_max_samples": 500,
                 "boundary_margin_frac": 0.1,
             },
         )
