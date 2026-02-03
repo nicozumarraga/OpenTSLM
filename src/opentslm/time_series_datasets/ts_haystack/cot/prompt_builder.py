@@ -167,6 +167,31 @@ TASK TYPE: Multi-Hop Localization
 - K (which occurrence): {difficulty_config.get("K", difficulty_config.get("k", "unknown"))}
 - Direction: {difficulty_config.get("direction", "unknown")} the anchor
 - Your reasoning must: (1) locate the anchor activity, (2) find the Kth target activity in the specified direction.""",
+
+        "anomaly_detection": f"""
+TASK TYPE: Anomaly Detection (Contextual Reasoning)
+- Background regime: {difficulty_config.get("background_regime", "unknown")}
+- Is anomaly present: {difficulty_config.get("is_positive", "unknown")}
+- Anomaly activity (if positive): {difficulty_config.get("anomaly_activity", "N/A")}
+- Your reasoning should:
+  1. First characterize the dominant pattern in the recording (sedentary or active)
+  2. Identify any activity that contrasts with this background pattern
+  3. Explain WHY it is (or isn't) anomalous based on regime mismatch
+- Key insight: An activity is anomalous if it belongs to a DIFFERENT regime than the background
+  (e.g., running in a sedentary background, or sleeping in an active background).""",
+
+        "anomaly_localization": f"""
+TASK TYPE: Anomaly Localization (Detection + Temporal)
+- Background regime: {difficulty_config.get("background_regime", "unknown")}
+- Is anomaly present: {difficulty_config.get("is_positive", "unknown")}
+- Anomaly activity (if positive): {difficulty_config.get("anomaly_activity", "N/A")}
+- Anomaly time range (if positive): {difficulty_config.get("anomaly_start", "N/A")} to {difficulty_config.get("anomaly_end", "N/A")}
+- Your reasoning should:
+  1. Characterize the dominant pattern (sedentary or active regime)
+  2. Identify any cross-regime activity
+  3. Specify the EXACT time range of the anomaly
+  4. Explain why this activity is anomalous in context
+- Key insight: Report both WHAT the anomaly is AND WHEN it occurs.""",
     }
 
     return contexts.get(task_type, f"TASK TYPE: {task_type}\n- Analyze the data and answer the question.")

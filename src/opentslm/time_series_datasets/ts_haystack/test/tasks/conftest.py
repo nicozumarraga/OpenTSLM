@@ -32,6 +32,8 @@ from opentslm.time_series_datasets.ts_haystack.tasks import (
     AntecedentTaskGenerator,
     ComparisonTaskGenerator,
     MultiHopTaskGenerator,
+    AnomalyDetectionTaskGenerator,
+    AnomalyLocalizationTaskGenerator,
 )
 
 
@@ -197,6 +199,22 @@ def multi_hop_generator():
     if not PHASE1_AVAILABLE:
         pytest.skip("Phase 1 artifacts not available")
     return MultiHopTaskGenerator.create_with_artifacts(seed=42)
+
+
+@pytest.fixture(scope="module")
+def anomaly_detection_generator():
+    """Create AnomalyDetectionTaskGenerator with loaded artifacts."""
+    if not PHASE1_AVAILABLE:
+        pytest.skip("Phase 1 artifacts not available")
+    return AnomalyDetectionTaskGenerator.create_with_artifacts(seed=42)
+
+
+@pytest.fixture(scope="module")
+def anomaly_localization_generator():
+    """Create AnomalyLocalizationTaskGenerator with loaded artifacts."""
+    if not PHASE1_AVAILABLE:
+        pytest.skip("Phase 1 artifacts not available")
+    return AnomalyLocalizationTaskGenerator.create_with_artifacts(seed=42)
 
 
 # =============================================================================

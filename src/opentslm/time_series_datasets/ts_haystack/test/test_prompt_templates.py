@@ -613,6 +613,23 @@ def _get_sample_kwargs_for_task(task: str) -> dict:
             "start": "11:00 AM",
             "end": "11:15 AM",
         },
+        # Anomaly Detection (split into positive/negative like comparison_with/without)
+        "anomaly_detection_positive": {
+            "anomaly_activity": "running",
+            "background_regime": "sedentary",
+        },
+        "anomaly_detection_negative": {
+            "background_regime": "sedentary",
+        },
+        # Anomaly Localization (split into positive/negative)
+        "anomaly_localization_positive": {
+            "anomaly_activity": "running",
+            "start": "9:00 AM",
+            "end": "9:15 AM",
+        },
+        "anomaly_localization_negative": {
+            "background_regime": "sedentary",
+        },
     }
 
     return base_kwargs.get(task, {})

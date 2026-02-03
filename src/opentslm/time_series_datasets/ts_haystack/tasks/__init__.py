@@ -50,6 +50,12 @@ from opentslm.time_series_datasets.ts_haystack.tasks.task_comparison import (
 from opentslm.time_series_datasets.ts_haystack.tasks.task_multi_hop import (
     MultiHopTaskGenerator,
 )
+from opentslm.time_series_datasets.ts_haystack.tasks.task_anomaly_detection import (
+    AnomalyDetectionTaskGenerator,
+)
+from opentslm.time_series_datasets.ts_haystack.tasks.task_anomaly_localization import (
+    AnomalyLocalizationTaskGenerator,
+)
 
 # Registry of all available task generators
 TASK_REGISTRY = {
@@ -61,6 +67,8 @@ TASK_REGISTRY = {
     "antecedent": AntecedentTaskGenerator,
     "comparison": ComparisonTaskGenerator,
     "multi_hop": MultiHopTaskGenerator,
+    "anomaly_detection": AnomalyDetectionTaskGenerator,
+    "anomaly_localization": AnomalyLocalizationTaskGenerator,
 }
 
 
@@ -102,6 +110,8 @@ __all__ = [
     "AntecedentTaskGenerator",
     "ComparisonTaskGenerator",
     "MultiHopTaskGenerator",
+    "AnomalyDetectionTaskGenerator",
+    "AnomalyLocalizationTaskGenerator",
     # Registry functions
     "TASK_REGISTRY",
     "get_task_generator",

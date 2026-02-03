@@ -49,6 +49,8 @@ tasks:
   # --------------------------------------------------------------------------
   # Task 1: Existence
   # "Is there {activity} in this recording?"
+  # Uses distractor insertion to prevent variance-based detection shortcuts.
+  # Multiple needles from the SAME activity regime are inserted.
   # --------------------------------------------------------------------------
   existence:
     enabled: true
@@ -57,18 +59,28 @@ tasks:
     background_purity: pure             # "pure" or "mixed"
     # Task-specific parameters
     margin_samples: 100                 # Position margin from edges
+    # Distractor insertion parameters
+    min_distractors: 1                  # Minimum number of needles to insert
+    max_distractors: 3                  # Maximum number of needles to insert
+    min_gap_samples: 100                # Minimum gap between inserted needles
 
   # --------------------------------------------------------------------------
   # Task 2: Localization
   # "When did the {activity} bout occur?"
+  # Uses distractor insertion to prevent variance-based detection shortcuts.
+  # Multiple needles from the SAME activity regime are inserted.
   # --------------------------------------------------------------------------
   localization:
     enabled: true
     needle_position: random
     needle_length_ratio_range: [0.02, 0.10]
     background_purity: pure
-    use_transition_probs: false         # Use transition matrix for needle selection
+    # Task-specific parameters
     margin_samples: 100
+    # Distractor insertion parameters
+    min_distractors: 2                  # Minimum needles (at least 2 for distractors)
+    max_distractors: 4                  # Maximum number of needles to insert
+    min_gap_samples: 100                # Minimum gap between inserted needles
 
   # --------------------------------------------------------------------------
   # Task 3: Counting
@@ -156,3 +168,44 @@ tasks:
     n_distractors_opposite: 0           # Distractor targets on opposite side
     min_gap_samples: 100
     margin_samples: 100
+
+  # --------------------------------------------------------------------------
+  # Task 9: Anomaly Detection
+  # "Is there an anomaly in this recording?"
+  # Tests contextual reasoning: detecting cross-regime activity insertions
+  # without being told what to look for.
+  #
+  # Sample design (mandatory distractors to prevent detection shortcuts):
+  # - Positive: 1 cross-regime (anomaly) + N same-regime distractors
+  # - Negative: N same-regime distractors only (no anomaly)
+  # --------------------------------------------------------------------------
+  anomaly_detection:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.03, 0.15]  # 3-15% of context
+    background_purity: pure              # MUST be pure for regime detection
+    # Task-specific parameters
+    margin_samples: 100
+    min_gap_samples: 100
+    min_distractors: 1                   # Minimum same-regime distractors (mandatory)
+    max_distractors: 3                   # Maximum same-regime distractors
+
+  # --------------------------------------------------------------------------
+  # Task 10: Anomaly Localization
+  # "Is there an anomaly, and if so, when does it occur?"
+  # Combines anomaly detection with temporal localization.
+  #
+  # Sample design (mandatory distractors to prevent detection shortcuts):
+  # - Positive: 1 cross-regime (anomaly) + N same-regime distractors + time range
+  # - Negative: N same-regime distractors only (no anomaly)
+  # --------------------------------------------------------------------------
+  anomaly_localization:
+    enabled: true
+    needle_position: random
+    needle_length_ratio_range: [0.03, 0.15]  # 3-15% of context
+    background_purity: pure              # MUST be pure for regime detection
+    # Task-specific parameters
+    margin_samples: 100
+    min_gap_samples: 100
+    min_distractors: 1                   # Minimum same-regime distractors (mandatory)
+    max_distractors: 3                   # More distractors make localization harder

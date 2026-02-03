@@ -60,6 +60,18 @@ from opentslm.time_series_datasets.ts_haystack.core.prompt_templates import (
     PromptTemplateBank,
     TemplateVariant,
 )
+from opentslm.time_series_datasets.ts_haystack.core.activity_regimes import (
+    WILLETTS_ACTIVITY_REGIMES,
+    ACTIVITY_TO_REGIME,
+    ALL_ACTIVITIES,
+    get_regime,
+    get_regime_activities,
+    get_same_regime_activities,
+    get_distractor_candidates,
+    get_other_regime_activities,
+    get_regime_for_activities,
+    filter_activities_by_regime,
+)
 
 __all__ = [
     # Data structures
@@ -95,4 +107,15 @@ __all__ = [
     "StyleTransfer",
     "PromptTemplateBank",
     "TemplateVariant",
+    # Activity regimes
+    "WILLETTS_ACTIVITY_REGIMES",
+    "ACTIVITY_TO_REGIME",
+    "ALL_ACTIVITIES",
+    "get_regime",
+    "get_regime_activities",
+    "get_same_regime_activities",
+    "get_distractor_candidates",
+    "get_other_regime_activities",
+    "get_regime_for_activities",
+    "filter_activities_by_regime",
 ]

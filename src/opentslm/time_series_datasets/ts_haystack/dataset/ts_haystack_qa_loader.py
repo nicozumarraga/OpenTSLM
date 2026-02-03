@@ -57,6 +57,8 @@ ALL_TASKS = [
     "antecedent",
     "comparison",
     "multi_hop",
+    "anomaly_detection",
+    "anomaly_localization",
 ]
 
 # Columns required for QADataset

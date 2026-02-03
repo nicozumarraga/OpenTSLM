@@ -958,6 +958,194 @@ class PromptTemplateBank:
                 answer="It occurred from {start} to {end}.",
             ),
         ],
+        # =====================================================================
+        # Task 9a: Anomaly Detection (Positive) - Anomaly IS present
+        # Tests contextual reasoning: detecting cross-regime activity insertions
+        # Requires: anomaly_activity, background_regime
+        # =====================================================================
+        "anomaly_detection_positive": [
+            TemplateVariant(
+                question="Is there an anomaly in this recording?",
+                answer="Yes, there is anomalous {anomaly_activity} activity in the {background_regime} background.",
+            ),
+            TemplateVariant(
+                question="Is there any anomalous activity in this accelerometer data?",
+                answer="Yes, {anomaly_activity} is anomalous in the {background_regime} context.",
+            ),
+            TemplateVariant(
+                question="Does this recording contain any unusual activity patterns?",
+                answer="Yes, there is unusual {anomaly_activity} activity within the {background_regime} background.",
+            ),
+            TemplateVariant(
+                question="Can you detect any anomalies in this sensor data?",
+                answer="Yes, I detect anomalous {anomaly_activity} in the otherwise {background_regime} recording.",
+            ),
+            TemplateVariant(
+                question="Is there anything out of the ordinary in this recording?",
+                answer="Yes, {anomaly_activity} activity is out of the ordinary for the {background_regime} background.",
+            ),
+            TemplateVariant(
+                question="Determine if there is an anomaly in this data.",
+                answer="Yes, there is an anomalous {anomaly_activity} bout in the {background_regime} background.",
+            ),
+            TemplateVariant(
+                question="Check for any anomalous patterns in this recording.",
+                answer="Yes, {anomaly_activity} is anomalous relative to the {background_regime} context.",
+            ),
+            TemplateVariant(
+                question="Please identify if any activity is anomalous in this recording.",
+                answer="Yes, {anomaly_activity} activity is anomalous in the {background_regime} background.",
+            ),
+            TemplateVariant(
+                question="Is there anything unusual that doesn't fit the overall pattern?",
+                answer="Yes, {anomaly_activity} does not fit the {background_regime} pattern.",
+            ),
+            TemplateVariant(
+                question="Looking at this data, can you identify any anomalies?",
+                answer="Yes, there is anomalous {anomaly_activity} in the {background_regime} background.",
+            ),
+        ],
+        # =====================================================================
+        # Task 9b: Anomaly Detection (Negative) - No anomaly present
+        # Same-regime insertions are NOT anomalous
+        # Requires: background_regime
+        # =====================================================================
+        "anomaly_detection_negative": [
+            TemplateVariant(
+                question="Is there an anomaly in this recording?",
+                answer="No, the recording shows consistent {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Is there any anomalous activity in this accelerometer data?",
+                answer="No, all activities are consistent with the {background_regime} pattern.",
+            ),
+            TemplateVariant(
+                question="Does this recording contain any unusual activity patterns?",
+                answer="No, the recording shows typical {background_regime} activity throughout.",
+            ),
+            TemplateVariant(
+                question="Can you detect any anomalies in this sensor data?",
+                answer="No anomalies detected. The data shows consistent {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Is there anything out of the ordinary in this recording?",
+                answer="No, everything is consistent with {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Determine if there is an anomaly in this data.",
+                answer="No, the recording is consistent with {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Check for any anomalous patterns in this recording.",
+                answer="No anomalous patterns detected. The {background_regime} pattern is consistent.",
+            ),
+            TemplateVariant(
+                question="Please identify if any activity is anomalous in this recording.",
+                answer="No, all activities are appropriate for the {background_regime} context.",
+            ),
+            TemplateVariant(
+                question="Is there anything unusual that doesn't fit the overall pattern?",
+                answer="No, all activities fit the {background_regime} pattern.",
+            ),
+            TemplateVariant(
+                question="Looking at this data, can you identify any anomalies?",
+                answer="No anomalies identified. The data shows {background_regime} activity.",
+            ),
+        ],
+        # =====================================================================
+        # Task 10a: Anomaly Localization (Positive) - Anomaly IS present with time range
+        # Combines anomaly detection with temporal localization.
+        # Requires: anomaly_activity, start, end
+        # =====================================================================
+        "anomaly_localization_positive": [
+            TemplateVariant(
+                question="Is there an anomaly in this recording, and if so, when does it occur?",
+                answer="Yes, there is anomalous {anomaly_activity} activity from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Identify any anomalies and their timing in this data.",
+                answer="Yes, {anomaly_activity} is anomalous, occurring from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Is there any unusual activity? If yes, specify when it occurred.",
+                answer="Yes, unusual {anomaly_activity} activity occurred from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Detect and locate any anomalies in this accelerometer data.",
+                answer="Anomaly detected: {anomaly_activity} from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Does this recording contain anomalies? Provide the time range if so.",
+                answer="Yes, anomalous {anomaly_activity} from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Find any anomalous patterns and specify when they occur.",
+                answer="Anomalous {anomaly_activity} found from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Is there anything out of the ordinary? Report the timing.",
+                answer="Yes, {anomaly_activity} is out of the ordinary, occurring {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Check for anomalies and report their temporal location.",
+                answer="Anomaly: {anomaly_activity} from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Determine if there is an anomaly and when it happened.",
+                answer="Yes, there is anomalous {anomaly_activity} from {start} to {end}.",
+            ),
+            TemplateVariant(
+                question="Identify and localize any anomalous activity in this recording.",
+                answer="Anomalous {anomaly_activity} localized at {start} to {end}.",
+            ),
+        ],
+        # =====================================================================
+        # Task 10b: Anomaly Localization (Negative) - No anomaly present
+        # Same-regime insertions are NOT anomalous
+        # Requires: background_regime
+        # =====================================================================
+        "anomaly_localization_negative": [
+            TemplateVariant(
+                question="Is there an anomaly in this recording, and if so, when does it occur?",
+                answer="No, the recording shows consistent {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Identify any anomalies and their timing in this data.",
+                answer="No anomalies found. The data shows consistent {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Is there any unusual activity? If yes, specify when it occurred.",
+                answer="No unusual activity. The recording is consistent with {background_regime} patterns.",
+            ),
+            TemplateVariant(
+                question="Detect and locate any anomalies in this accelerometer data.",
+                answer="No anomalies detected. Consistent {background_regime} activity throughout.",
+            ),
+            TemplateVariant(
+                question="Does this recording contain anomalies? Provide the time range if so.",
+                answer="No, the recording shows consistent {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Find any anomalous patterns and specify when they occur.",
+                answer="No anomalous patterns found in this {background_regime} recording.",
+            ),
+            TemplateVariant(
+                question="Is there anything out of the ordinary? Report the timing.",
+                answer="Nothing out of the ordinary. Consistent {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Check for anomalies and report their temporal location.",
+                answer="No anomalies to report. The {background_regime} pattern is consistent.",
+            ),
+            TemplateVariant(
+                question="Determine if there is an anomaly and when it happened.",
+                answer="No anomaly detected. The recording shows {background_regime} activity.",
+            ),
+            TemplateVariant(
+                question="Identify and localize any anomalous activity in this recording.",
+                answer="No anomalous activity found. Consistent {background_regime} throughout.",
+            ),
+        ],
     }
 
     # Ordinal mappings for multi-hop
@@ -1051,6 +1239,11 @@ class PromptTemplateBank:
             filled["yes_no"] = "Yes" if exists else "No"
             filled["does_doesnt"] = "does" if exists else "doesn't"
             filled["present_absent"] = "present" if exists else "absent"
+
+        # Anomaly detection/localization helpers
+        if "is_anomaly" in filled:
+            is_anomaly = filled["is_anomaly"]
+            filled["yes_no"] = "Yes" if is_anomaly else "No"
 
         # Ordering helpers
         if "a_before_b" in filled:

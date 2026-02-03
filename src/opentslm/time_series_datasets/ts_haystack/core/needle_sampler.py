@@ -249,6 +249,70 @@ class NeedleSampler:
             z=z,
         )
 
+    def sample_needles_for_regime(
+        self,
+        regime_activities: Set[str],
+        n_needles: int,
+        min_duration_ms: int = 0,
+        exclude_pids: Optional[Set[str]] = None,
+        rng: Optional[np.random.Generator] = None,
+    ) -> List[NeedleSample]:
+        """
+        Sample multiple needles from a set of activities (typically same regime).
+
+        Used for distractor insertion in existence/localization tasks. Samples
+        needles from different activities within the regime to prevent models
+        from detecting needles by variance change alone.
+
+        Args:
+            regime_activities: Set of activity labels to sample from
+            n_needles: Number of needles to sample (may return fewer if unavailable)
+            min_duration_ms: Minimum bout duration
+            exclude_pids: Participant IDs to exclude
+            rng: Random generator
+
+        Returns:
+            List of NeedleSample objects (may be fewer than n_needles if
+            not enough valid bouts are available)
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+
+        needles = []
+        activities_list = list(regime_activities)
+        rng.shuffle(activities_list)
+
+        # Try to get one needle per activity first (for diversity)
+        for activity in activities_list:
+            if len(needles) >= n_needles:
+                break
+
+            needle = self.sample_needle(
+                activity=activity,
+                min_duration_ms=min_duration_ms,
+                exclude_pids=exclude_pids,
+                rng=rng,
+            )
+            if needle is not None:
+                needles.append(needle)
+
+        # If still need more, sample from any activity in the regime
+        attempts = 0
+        max_attempts = n_needles * 3
+        while len(needles) < n_needles and attempts < max_attempts:
+            activity = activities_list[rng.integers(0, len(activities_list))]
+            needle = self.sample_needle(
+                activity=activity,
+                min_duration_ms=min_duration_ms,
+                exclude_pids=exclude_pids,
+                rng=rng,
+            )
+            if needle is not None:
+                needles.append(needle)
+            attempts += 1
+
+        return needles
+
     def get_available_activities(self) -> List[str]:
         """Return list of all activities in the bout index."""
         return self.bout_index.activities

@@ -92,10 +92,10 @@ class AntecedentTaskGenerator(BaseTaskGenerator):
         # Step 1: Sample background (prefer low-activity for clean signal)
         # =====================================================================
         if background_mode == "low_activity":
-            # Select from sleep or sedentary periods for cleaner signal
+            # Select from sleep or standing/sitting periods for cleaner signal
             background = self.background_sampler.sample_background(
                 context_length_samples=context_length,
-                allowed_activities={"sleep", "sedentary", "sitting"},
+                allowed_activities={"sleep", "standing", "sitting"},
                 purity="pure",
                 rng=rng,
             )

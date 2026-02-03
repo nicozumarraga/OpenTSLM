@@ -8,15 +8,24 @@ Task 1: "Is there {activity} in this recording?"
 
 This is the simplest task - a binary classification asking whether
 a specific activity is present in the time series window.
+
+Updated with distractor insertion to prevent variance-based detection shortcuts.
+When the background is homogeneous, inserting multiple needles from the same
+activity regime forces the model to distinguish between similar activities
+rather than just detecting variance changes.
 """
 
-from typing import Optional
+from typing import List, Optional, Set, Tuple
 
 import numpy as np
 
 from opentslm.time_series_datasets.ts_haystack.core import (
     DifficultyConfig,
     GeneratedSample,
+    InsertedNeedle,
+    NeedleSample,
+    WILLETTS_ACTIVITY_REGIMES,
+    get_regime_activities,
 )
 from opentslm.time_series_datasets.ts_haystack.tasks.base_task import BaseTaskGenerator
 
@@ -25,21 +34,29 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
     """
     Task 1: Existence - "Is there {activity} in this recording?"
 
-    Algorithm:
+    Updated Algorithm (with distractor insertion):
     1. Sample background window
-    2. Flip coin: positive (50%) or negative (50%)
-    3. Positive case:
-       a. With 50% probability: Ask about activity already in background
-       b. With 50% probability: Insert needle of new activity and ask about it
-    4. Negative case:
-       - Ask about activity NOT present in background (no needle inserted)
-    5. Generate Q/A pair using template bank
+    2. Decide positive (50%) or negative (50%) formulation
+    3. Randomly select a regime (sedentary or active)
+    4. Compute insertable_activities = regime_activities - background_activities
+    5. For negative case: ensure at least 1 activity reserved for target
+    6. Sample N needles from insertable_activities
+    7. Insert all needles at non-overlapping positions
+    8. Select target:
+       - Positive: random activity from inserted_activities
+       - Negative: random activity from (insertable_activities - inserted_activities)
+    9. Generate Q/A pair using template bank
+
+    This prevents variance-based detection shortcuts by inserting multiple
+    similar activities, forcing the model to learn activity-specific patterns.
 
     Difficulty Knobs:
     - context_length_samples: Longer windows are harder to scan
     - background_purity: "mixed" backgrounds have more activity variety
     - needle_length_ratio_range: Shorter needles (smaller ratio) are harder to detect
     - needle_position: Position affects difficulty (edges vs middle)
+    - min_distractors / max_distractors: More distractors increases difficulty
+    - min_gap_samples: Gap between inserted needles
 
     Answer Type: boolean (Yes/No)
     """
@@ -58,7 +75,7 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
         rng: np.random.Generator,
     ) -> GeneratedSample:
         """
-        Generate a single existence task sample.
+        Generate a single existence task sample with distractor insertion.
 
         Args:
             difficulty: Difficulty configuration
@@ -86,103 +103,152 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
         if not is_valid:
             return self._create_invalid_sample(reason, difficulty)
 
-        # Initialize output signal with background
-        final_x = background.x.copy()
-        final_y = background.y.copy()
-        final_z = background.z.copy()
-
         # Step 2: Decide positive or negative sample (50/50 balance)
         is_positive = rng.random() < 0.5
 
-        # Track needle insertion
-        inserted_needle = None
-        target_activity: Optional[str] = None
+        # Step 3: Randomly select a regime
+        regimes = list(WILLETTS_ACTIVITY_REGIMES.keys())
+        selected_regime = regimes[rng.integers(0, len(regimes))]
+        regime_activities = get_regime_activities(selected_regime)
 
+        # Step 4: Compute insertable activities (regime - background)
+        insertable_activities = regime_activities - background.activities_present
+
+        if not insertable_activities:
+            return self._create_invalid_sample(
+                f"No insertable activities for regime '{selected_regime}' "
+                f"(background has: {background.activities_present})",
+                difficulty,
+            )
+
+        # Step 5: For negative case, we need at least 2 insertable activities:
+        # - At least 1 to insert as distractor
+        # - At least 1 to ask about (that's NOT inserted)
+        # For positive case, we need at least 1 insertable activity
+        if not is_positive and len(insertable_activities) < 2:
+            # Fall back to positive case
+            is_positive = True
+
+        # Step 6: Determine how many needles to insert
+        min_distractors = difficulty.task_specific.get("min_distractors", 1)
+        max_distractors = difficulty.task_specific.get("max_distractors", 3)
+
+        # Cap by available activities (reserve 1 for negative target if needed)
+        max_insertable = len(insertable_activities) if is_positive else len(insertable_activities) - 1
+        max_insertable = max(1, max_insertable)  # At least 1
+
+        n_needles = int(rng.integers(
+            min(min_distractors, max_insertable),
+            min(max_distractors, max_insertable) + 1
+        ))
+
+        # Step 7: Sample needles from regime
+        min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
+            self.source_hz
+        )
+        needles = self.needle_sampler.sample_needles_for_regime(
+            regime_activities=insertable_activities,
+            n_needles=n_needles,
+            min_duration_ms=min_duration_ms,
+            rng=rng,
+        )
+
+        if not needles:
+            return self._create_invalid_sample(
+                f"Failed to sample needles for regime '{selected_regime}'",
+                difficulty,
+            )
+
+        # Get the set of activities we successfully sampled
+        inserted_activities = {n.activity for n in needles}
+
+        # Step 8: Insert all needles at non-overlapping positions
+        min_gap = difficulty.task_specific.get("min_gap_samples", 100)
+        margin = difficulty.task_specific.get("margin_samples", 100)
+
+        final_x = background.x.copy()
+        final_y = background.y.copy()
+        final_z = background.z.copy()
+        occupied_ranges: List[Tuple[int, int]] = []
+        inserted_needle_metadata: List[InsertedNeedle] = []
+
+        for needle in needles:
+            # Determine target length for this needle
+            capped_max_ms = min(max_duration_ms, needle.duration_ms)
+            if capped_max_ms < min_duration_ms:
+                continue  # Skip if needle is too short
+
+            target_duration_ms = int(rng.integers(min_duration_ms, capped_max_ms + 1))
+            target_samples = int(target_duration_ms * self.source_hz / 1000)
+            target_samples = min(target_samples, needle.n_samples)
+
+            # Trim needle
+            trimmed_needle = self._trim_needle(needle, target_samples)
+
+            # Find non-overlapping position
+            position = self._find_valid_position(
+                context_length=context_length,
+                needle_length=trimmed_needle.n_samples,
+                occupied_ranges=occupied_ranges,
+                min_gap=min_gap,
+                rng=rng,
+                margin=margin,
+            )
+
+            if position is None:
+                continue  # Skip if no valid position found
+
+            # Insert needle
+            final_x, final_y, final_z = self._insert_needle(
+                background=background,
+                needle=trimmed_needle,
+                position=position,
+                current_signal=(final_x, final_y, final_z),
+            )
+
+            # Record occupied range
+            occupied_ranges.append((position, position + trimmed_needle.n_samples))
+
+            # Create metadata
+            inserted_needle_metadata.append(
+                self._create_inserted_needle(
+                    needle=trimmed_needle,
+                    position=position,
+                    context_length=context_length,
+                    background=background,
+                )
+            )
+
+        if not inserted_needle_metadata:
+            return self._create_invalid_sample(
+                "Failed to insert any needles",
+                difficulty,
+            )
+
+        # Update inserted_activities based on what we actually inserted
+        actually_inserted = {m.activity for m in inserted_needle_metadata}
+
+        # Step 9: Select target activity
         if is_positive:
-            # Positive case: activity IS present
-            # Sub-decision: use existing activity or insert needle
-            insert_new_needle = rng.random() < 0.5
-
-            if insert_new_needle:
-                # Insert a needle of an activity NOT in background
-                # No PID exclusion needed - we're selecting a different activity,
-                # so even if from same participant, the data won't overlap
-                min_duration_ms, max_duration_ms = difficulty.get_needle_length_range_ms(
-                    self.source_hz
-                )
-                needle = self.needle_sampler.sample_needle_for_context(
-                    context_activities=background.activities_present,
-                    min_duration_ms=min_duration_ms,
-                    rng=rng,
-                )
-
-                if needle is not None:
-                    target_activity = needle.activity
-
-                    # Determine needle length (sample within range, capped by actual needle)
-                    max_duration_ms = min(max_duration_ms, needle.duration_ms)
-                    target_duration_ms = int(rng.integers(
-                        min_duration_ms,
-                        max_duration_ms + 1,
-                    ))
-                    target_samples = int(target_duration_ms * self.source_hz / 1000)
-                    target_samples = min(target_samples, needle.n_samples)
-
-                    # Trim needle to target length
-                    trimmed_needle = self._trim_needle(needle, target_samples)
-
-                    # Sample insertion position
-                    position = self._sample_position(
-                        context_length=context_length,
-                        needle_length=trimmed_needle.n_samples,
-                        position_mode=difficulty.needle_position,
-                        rng=rng,
-                        margin_samples=difficulty.task_specific.get("margin_samples", 100),
-                    )
-
-                    if position is not None:
-                        # Insert needle with style transfer
-                        final_x, final_y, final_z = self._insert_needle(
-                            background=background,
-                            needle=trimmed_needle,
-                            position=position,
-                        )
-
-                        # Create needle metadata
-                        inserted_needle = self._create_inserted_needle(
-                            needle=trimmed_needle,
-                            position=position,
-                            context_length=context_length,
-                            background=background,
-                        )
-                    else:
-                        # Position sampling failed, fall back to existing activity
-                        target_activity = None
-
-            # Fallback or intentional: use activity already in background
-            if target_activity is None:
-                if background.activities_present:
-                    target_activity = rng.choice(list(background.activities_present))
-                else:
-                    return self._create_invalid_sample(
-                        "No activities in background for positive case",
-                        difficulty,
-                    )
-
+            # Ask about an activity that WAS inserted
+            target_activity = list(actually_inserted)[
+                rng.integers(0, len(actually_inserted))
+            ]
         else:
-            # Negative case: activity is NOT present
-            all_activities = set(self.needle_sampler.get_available_activities())
-            absent_activities = all_activities - background.activities_present
+            # Ask about an activity in the same regime that was NOT inserted
+            available_negatives = insertable_activities - actually_inserted
+            if not available_negatives:
+                # Fall back to positive if no negatives available
+                is_positive = True
+                target_activity = list(actually_inserted)[
+                    rng.integers(0, len(actually_inserted))
+                ]
+            else:
+                target_activity = list(available_negatives)[
+                    rng.integers(0, len(available_negatives))
+                ]
 
-            if not absent_activities:
-                return self._create_invalid_sample(
-                    "No absent activities for negative case",
-                    difficulty,
-                )
-
-            target_activity = rng.choice(list(absent_activities))
-
-        # Step 5: Generate Q/A using template bank
+        # Step 10: Generate Q/A using template bank
         question, answer = self.template_bank.sample(
             task="existence",
             rng=rng,
@@ -195,7 +261,9 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
             **difficulty.to_dict(),
             "target_activity": target_activity,
             "is_positive": is_positive,
-            "needle_inserted": inserted_needle is not None,
+            "selected_regime": selected_regime,
+            "inserted_activities": list(actually_inserted),
+            "n_needles_inserted": len(inserted_needle_metadata),
             "background_activities": list(background.activities_present),
         }
 
@@ -210,7 +278,7 @@ class ExistenceTaskGenerator(BaseTaskGenerator):
             question=question,
             answer=answer,
             answer_type=self.answer_type,
-            needles=[inserted_needle] if inserted_needle else [],
+            needles=inserted_needle_metadata,
             difficulty_config=full_difficulty_config,
             is_valid=True,
         )
@@ -279,6 +347,24 @@ if __name__ == "__main__":
         default="pure",
         help="Background purity mode",
     )
+    parser.add_argument(
+        "--min-distractors",
+        type=int,
+        default=1,
+        help="Minimum number of distractor needles to insert",
+    )
+    parser.add_argument(
+        "--max-distractors",
+        type=int,
+        default=3,
+        help="Maximum number of distractor needles to insert",
+    )
+    parser.add_argument(
+        "--min-gap-samples",
+        type=int,
+        default=100,
+        help="Minimum gap between inserted needles (in samples)",
+    )
 
     args = parser.parse_args()
 
@@ -293,6 +379,12 @@ if __name__ == "__main__":
             needle_position=args.needle_position,
             needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
             background_purity=args.background_purity,
+            task_specific={
+                "min_distractors": args.min_distractors,
+                "max_distractors": args.max_distractors,
+                "min_gap_samples": args.min_gap_samples,
+                "margin_samples": 100,
+            },
         )
 
         for split, n_samples in zip(

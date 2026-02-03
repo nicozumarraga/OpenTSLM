@@ -407,15 +407,62 @@ question, answer = template_bank.sample(
 )
 ```
 
+## Distractor Insertion (Existence & Localization)
+
+To prevent models from "cheating" by detecting variance changes in homogeneous backgrounds,
+the Existence and Localization tasks insert **multiple needles from the same activity regime**.
+This forces the model to distinguish between similar activities rather than just detecting
+signal variance changes.
+
+### Activity Regimes
+
+Activities are grouped by signal characteristics:
+
+| Regime | Activities | Signal Characteristics |
+|--------|-----------|------------------------|
+| **Sedentary** | sleep, sitting, vehicle, standing, household-chores | Low-to-moderate variance, minimal rhythmic patterns |
+| **Active** | walking, mixed-activity, bicycling, manual-work, sports | Higher variance, rhythmic/dynamic patterns |
+
+### How It Works
+
+1. **Existence Task**: Inserts N needles from ONE randomly-selected regime
+   - Positive: asks about an inserted activity
+   - Negative: asks about a non-inserted activity **from the same regime**
+
+2. **Localization Task**: Inserts N needles from ONE randomly-selected regime
+   - Asks about a specific inserted needle (target)
+   - Other needles serve as distractors with similar signal properties
+
+### Configuration Parameters
+
+Distractor insertion is controlled via `task_specific` in `DifficultyConfig`:
+
+```python
+difficulty = DifficultyConfig(
+    context_length_samples=10000,
+    task_specific={
+        "min_distractors": 2,      # Minimum needles to insert
+        "max_distractors": 4,      # Maximum needles to insert
+        "min_gap_samples": 100,    # Minimum gap between needles
+    },
+)
+```
+
 ## Task-Specific Configuration
 
 Each task supports `task_specific` parameters in `DifficultyConfig`:
 
 ### Existence
-- No additional parameters required
+- `min_distractors`: Minimum number of needles to insert (default: 1)
+- `max_distractors`: Maximum number of needles to insert (default: 3)
+- `min_gap_samples`: Minimum gap between inserted needles (default: 100)
+- `margin_samples`: Position margin from window edges (default: 100)
 
 ### Localization
-- `min_bg_activities`: Minimum activities in background (default: 1)
+- `min_distractors`: Minimum number of needles to insert (default: 2)
+- `max_distractors`: Maximum number of needles to insert (default: 4)
+- `min_gap_samples`: Minimum gap between inserted needles (default: 100)
+- `margin_samples`: Position margin from window edges (default: 100)
 
 ### Counting
 - `min_bouts`: Minimum bouts to insert (default: 1)
