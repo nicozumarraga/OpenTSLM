@@ -316,6 +316,30 @@ if __name__ == "__main__":
         default=3,
         help="Maximum number of same-regime distractor needles",
     )
+    parser.add_argument(
+        "--min-gap-ratio",
+        type=float,
+        default=0.02,
+        help="Min gap as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--min-gap-max-samples",
+        type=int,
+        default=100,
+        help="Maximum min_gap in samples (default: 100)",
+    )
+    parser.add_argument(
+        "--margin-ratio",
+        type=float,
+        default=0.02,
+        help="Margin as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--margin-max-samples",
+        type=int,
+        default=100,
+        help="Maximum margin in samples (default: 100)",
+    )
 
     args = parser.parse_args()
 
@@ -333,8 +357,10 @@ if __name__ == "__main__":
             task_specific={
                 "min_distractors": args.min_distractors,
                 "max_distractors": args.max_distractors,
-                "min_gap_samples": 100,
-                "margin_samples": 100,
+                "min_gap_ratio": args.min_gap_ratio,
+                "min_gap_max_samples": args.min_gap_max_samples,
+                "margin_ratio": args.margin_ratio,
+                "margin_max_samples": args.margin_max_samples,
             },
         )
 

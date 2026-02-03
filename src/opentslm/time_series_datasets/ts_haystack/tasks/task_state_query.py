@@ -344,8 +344,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--needle-ratio-max",
         type=float,
-        default=0.05,
-        help="Maximum needle length as fraction of context (default: 0.05 = 5%%)",
+        default=0.02,
+        help="Maximum needle length as fraction of context (default: 0.02 = 2%%)",
     )
 
     args = parser.parse_args()

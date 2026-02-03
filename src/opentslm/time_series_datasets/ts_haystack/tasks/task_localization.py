@@ -147,8 +147,8 @@ class LocalizationTaskGenerator(BaseTaskGenerator):
             )
 
         # Step 6: Insert all needles at non-overlapping positions
-        min_gap = difficulty.task_specific.get("min_gap_samples", 100)
-        margin = difficulty.task_specific.get("margin_samples", 100)
+        min_gap = difficulty.get_effective_min_gap_samples()
+        margin = difficulty.get_effective_margin_samples()
 
         final_x = background.x.copy()
         final_y = background.y.copy()
@@ -334,10 +334,28 @@ if __name__ == "__main__":
         help="Maximum number of distractor needles to insert (including target)",
     )
     parser.add_argument(
-        "--min-gap-samples",
+        "--min-gap-ratio",
+        type=float,
+        default=0.02,
+        help="Min gap as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--min-gap-max-samples",
         type=int,
         default=100,
-        help="Minimum gap between inserted needles (in samples)",
+        help="Maximum min_gap in samples (default: 100)",
+    )
+    parser.add_argument(
+        "--margin-ratio",
+        type=float,
+        default=0.02,
+        help="Margin as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--margin-max-samples",
+        type=int,
+        default=100,
+        help="Maximum margin in samples (default: 100)",
     )
 
     args = parser.parse_args()
@@ -356,8 +374,10 @@ if __name__ == "__main__":
             task_specific={
                 "min_distractors": args.min_distractors,
                 "max_distractors": args.max_distractors,
-                "min_gap_samples": args.min_gap_samples,
-                "margin_samples": 100,
+                "min_gap_ratio": args.min_gap_ratio,
+                "min_gap_max_samples": args.min_gap_max_samples,
+                "margin_ratio": args.margin_ratio,
+                "margin_max_samples": args.margin_max_samples,
             },
         )
 

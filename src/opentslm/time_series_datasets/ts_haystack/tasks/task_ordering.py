@@ -74,8 +74,8 @@ class OrderingTaskGenerator(BaseTaskGenerator):
             GeneratedSample with ordering question and boolean/category answer
         """
         context_length = difficulty.context_length_samples
-        min_gap = difficulty.task_specific.get("min_gap_samples", 100)
-        margin = difficulty.task_specific.get("margin_samples", 100)
+        min_gap = difficulty.get_effective_min_gap_samples()
+        margin = difficulty.get_effective_margin_samples()
 
         # =====================================================================
         # Step 1: Sample two distinct activities
@@ -425,10 +425,28 @@ if __name__ == "__main__":
         help="Background purity mode",
     )
     parser.add_argument(
-        "--min-gap-samples",
+        "--min-gap-ratio",
+        type=float,
+        default=0.02,
+        help="Min gap as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--min-gap-max-samples",
         type=int,
         default=100,
-        help="Minimum gap between activities in samples",
+        help="Maximum min_gap in samples (default: 100)",
+    )
+    parser.add_argument(
+        "--margin-ratio",
+        type=float,
+        default=0.02,
+        help="Margin as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--margin-max-samples",
+        type=int,
+        default=100,
+        help="Maximum margin in samples (default: 100)",
     )
 
     args = parser.parse_args()
@@ -445,8 +463,10 @@ if __name__ == "__main__":
             needle_length_ratio_range=(args.needle_ratio_min, args.needle_ratio_max),
             background_purity=args.background_purity,
             task_specific={
-                "min_gap_samples": args.min_gap_samples,
-                "margin_samples": 100,
+                "min_gap_ratio": args.min_gap_ratio,
+                "min_gap_max_samples": args.min_gap_max_samples,
+                "margin_ratio": args.margin_ratio,
+                "margin_max_samples": args.margin_max_samples,
                 "question_format": args.question_format,
             },
         )

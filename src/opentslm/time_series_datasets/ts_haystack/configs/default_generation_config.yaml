@@ -57,12 +57,14 @@ tasks:
     needle_position: random             # "random", "beginning", "middle", "end"
     needle_length_ratio_range: [0.02, 0.10]  # 2-10% of context
     background_purity: pure             # "pure" or "mixed"
-    # Task-specific parameters
-    margin_samples: 100                 # Position margin from edges
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02                  # 2% of context length
+    margin_max_samples: 100             # Cap at 100 samples for longer contexts
+    min_gap_ratio: 0.02                 # 2% of context length
+    min_gap_max_samples: 100            # Cap at 100 samples
     # Distractor insertion parameters
     min_distractors: 1                  # Minimum number of needles to insert
     max_distractors: 3                  # Maximum number of needles to insert
-    min_gap_samples: 100                # Minimum gap between inserted needles
 
   # --------------------------------------------------------------------------
   # Task 2: Localization
@@ -75,12 +77,14 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.02, 0.10]
     background_purity: pure
-    # Task-specific parameters
-    margin_samples: 100
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    min_gap_ratio: 0.02
+    min_gap_max_samples: 100
     # Distractor insertion parameters
     min_distractors: 2                  # Minimum needles (at least 2 for distractors)
     max_distractors: 4                  # Maximum number of needles to insert
-    min_gap_samples: 100                # Minimum gap between inserted needles
 
   # --------------------------------------------------------------------------
   # Task 3: Counting
@@ -91,10 +95,14 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.02, 0.08]   # Smaller for multiple needles
     background_purity: pure
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    min_gap_ratio: 0.02
+    min_gap_max_samples: 100
+    # Task-specific parameters
     min_bouts: 1                        # Minimum bouts to insert
     max_bouts: 5                        # Maximum bouts to insert
-    min_gap_samples: 100                # Minimum gap between bouts
-    margin_samples: 100
 
   # --------------------------------------------------------------------------
   # Task 4: Ordering
@@ -105,8 +113,12 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.02, 0.10]
     background_purity: pure
-    min_gap_samples: 100                # Gap between the two activities
-    margin_samples: 100
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    min_gap_ratio: 0.02
+    min_gap_max_samples: 100
+    # Task-specific parameters
     question_format: boolean            # "boolean" or "category"
 
   # --------------------------------------------------------------------------
@@ -134,9 +146,12 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.02, 0.08]   # Two needles need to fit
     background_purity: pure
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    # Task-specific parameters
     background_mode: low_activity       # "low_activity" (forces pure) or "mixed"
     adjacency_gap_samples: 10           # Gap between antecedent and target
-    margin_samples: 100
     use_transition_probs: false         # Use transition matrix for activity pairing
 
   # --------------------------------------------------------------------------
@@ -148,11 +163,15 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.02, 0.08]   # Multiple needles
     background_purity: pure
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    min_gap_ratio: 0.02
+    min_gap_max_samples: 100
+    # Task-specific parameters
     min_bouts: 2                        # Minimum bouts to compare
     max_bouts: 4                        # Maximum bouts
     min_duration_diff_ms: 2000          # Minimum duration difference (avoid ties)
-    min_gap_samples: 100
-    margin_samples: 100
 
   # --------------------------------------------------------------------------
   # Task 8: Multi-Hop
@@ -163,11 +182,15 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.02, 0.06]   # Multiple needles + anchor
     background_purity: pure
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    min_gap_ratio: 0.02
+    min_gap_max_samples: 100
+    # Task-specific parameters
     k_distribution: [0.4, 0.4, 0.2]     # P(K=1), P(K=2), P(K=3)
     direction_mode: random              # "random", "after_only", "before_only"
     n_distractors_opposite: 0           # Distractor targets on opposite side
-    min_gap_samples: 100
-    margin_samples: 100
 
   # --------------------------------------------------------------------------
   # Task 9: Anomaly Detection
@@ -184,9 +207,12 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.03, 0.15]  # 3-15% of context
     background_purity: pure              # MUST be pure for regime detection
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    min_gap_ratio: 0.02
+    min_gap_max_samples: 100
     # Task-specific parameters
-    margin_samples: 100
-    min_gap_samples: 100
     min_distractors: 1                   # Minimum same-regime distractors (mandatory)
     max_distractors: 3                   # Maximum same-regime distractors
 
@@ -204,8 +230,11 @@ tasks:
     needle_position: random
     needle_length_ratio_range: [0.03, 0.15]  # 3-15% of context
     background_purity: pure              # MUST be pure for regime detection
+    # Adaptive margin/gap parameters (ratio-based with max cap)
+    margin_ratio: 0.02
+    margin_max_samples: 100
+    min_gap_ratio: 0.02
+    min_gap_max_samples: 100
     # Task-specific parameters
-    margin_samples: 100
-    min_gap_samples: 100
     min_distractors: 1                   # Minimum same-regime distractors (mandatory)
     max_distractors: 3                   # More distractors make localization harder

@@ -236,7 +236,13 @@ def small_difficulty():
         needle_position="random",
         needle_length_ratio_range=(0.06, 0.30),  # 300-1500 samples for 5000 context
         background_purity="pure",
-        task_specific={"margin_samples": 50, "min_gap_samples": 50},
+        task_specific={
+            # Ratio-based margin/gap (adaptive to context length)
+            "margin_ratio": 0.01,  # 1% of context = 50 samples
+            "margin_max_samples": 50,
+            "min_gap_ratio": 0.01,  # 1% of context = 50 samples
+            "min_gap_max_samples": 50,
+        },
     )
 
 
@@ -248,5 +254,11 @@ def medium_difficulty():
         needle_position="random",
         needle_length_ratio_range=(0.03, 0.30),  # 300-3000 samples for 10000 context
         background_purity="pure",
-        task_specific={"margin_samples": 100, "min_gap_samples": 100},
+        task_specific={
+            # Ratio-based margin/gap (adaptive to context length)
+            "margin_ratio": 0.02,  # 2% of context, capped at 100
+            "margin_max_samples": 100,
+            "min_gap_ratio": 0.02,  # 2% of context, capped at 100
+            "min_gap_max_samples": 100,
+        },
     )

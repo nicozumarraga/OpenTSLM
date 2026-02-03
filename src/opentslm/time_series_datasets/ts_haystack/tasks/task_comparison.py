@@ -90,8 +90,8 @@ class ComparisonTaskGenerator(BaseTaskGenerator):
         min_bouts = difficulty.task_specific.get("min_bouts", 2)
         max_bouts = difficulty.task_specific.get("max_bouts", 4)
         min_duration_diff_ms = difficulty.task_specific.get("min_duration_diff_ms", 2000)
-        min_gap_samples = difficulty.task_specific.get("min_gap_samples", 100)
-        margin_samples = difficulty.task_specific.get("margin_samples", 100)
+        min_gap_samples = difficulty.get_effective_min_gap_samples()
+        margin_samples = difficulty.get_effective_margin_samples()
 
         # =====================================================================
         # Step 1: Sample question type (extremum x polarity)
@@ -439,10 +439,28 @@ if __name__ == "__main__":
         help="Background purity mode",
     )
     parser.add_argument(
-        "--min-gap-samples",
+        "--min-gap-ratio",
+        type=float,
+        default=0.02,
+        help="Min gap as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--min-gap-max-samples",
         type=int,
         default=100,
-        help="Minimum gap between bouts in samples",
+        help="Maximum min_gap in samples (default: 100)",
+    )
+    parser.add_argument(
+        "--margin-ratio",
+        type=float,
+        default=0.02,
+        help="Margin as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--margin-max-samples",
+        type=int,
+        default=100,
+        help="Maximum margin in samples (default: 100)",
     )
 
     args = parser.parse_args()
@@ -462,8 +480,10 @@ if __name__ == "__main__":
                 "min_bouts": args.min_bouts,
                 "max_bouts": args.max_bouts,
                 "min_duration_diff_ms": args.min_duration_diff,
-                "min_gap_samples": args.min_gap_samples,
-                "margin_samples": 100,
+                "min_gap_ratio": args.min_gap_ratio,
+                "min_gap_max_samples": args.min_gap_max_samples,
+                "margin_ratio": args.margin_ratio,
+                "margin_max_samples": args.margin_max_samples,
             },
         )
 

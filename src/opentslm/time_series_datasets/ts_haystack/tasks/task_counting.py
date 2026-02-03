@@ -130,8 +130,8 @@ class CountingTaskGenerator(BaseTaskGenerator):
         n_bouts = int(rng.integers(min_bouts, max_bouts + 1))
 
         # Step 4: Insert N bouts
-        min_gap_samples = difficulty.task_specific.get("min_gap_samples", 100)
-        margin_samples = difficulty.task_specific.get("margin_samples", 100)
+        min_gap_samples = difficulty.get_effective_min_gap_samples()
+        margin_samples = difficulty.get_effective_margin_samples()
 
         # Initialize signal
         current_signal = (
@@ -328,10 +328,28 @@ if __name__ == "__main__":
         help="Background purity mode",
     )
     parser.add_argument(
-        "--min-gap-samples",
+        "--min-gap-ratio",
+        type=float,
+        default=0.02,
+        help="Min gap as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--min-gap-max-samples",
         type=int,
         default=100,
-        help="Minimum gap between bouts in samples",
+        help="Maximum min_gap in samples (default: 100)",
+    )
+    parser.add_argument(
+        "--margin-ratio",
+        type=float,
+        default=0.02,
+        help="Margin as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--margin-max-samples",
+        type=int,
+        default=100,
+        help="Maximum margin in samples (default: 100)",
     )
 
     args = parser.parse_args()
@@ -350,7 +368,10 @@ if __name__ == "__main__":
             task_specific={
                 "min_bouts": args.min_bouts,
                 "max_bouts": args.max_bouts,
-                "min_gap_samples": args.min_gap_samples,
+                "min_gap_ratio": args.min_gap_ratio,
+                "min_gap_max_samples": args.min_gap_max_samples,
+                "margin_ratio": args.margin_ratio,
+                "margin_max_samples": args.margin_max_samples,
             },
         )
 

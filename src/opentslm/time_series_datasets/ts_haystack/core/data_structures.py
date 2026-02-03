@@ -373,6 +373,44 @@ class DifficultyConfig:
             int(max_samples * 1000 / source_hz),
         )
 
+    def get_effective_margin_samples(self) -> int:
+        """
+        Compute effective margin based on ratio and max cap.
+
+        Uses ratio-based computation with a maximum cap to allow adaptive
+        margins for short context lengths while maintaining reasonable bounds
+        for longer contexts.
+
+        Config parameters (in task_specific):
+            margin_ratio: Margin as fraction of context (default: 0.02 = 2%)
+            margin_max_samples: Maximum margin in samples (default: 100)
+
+        Returns:
+            Effective margin in samples: min(context_length * ratio, max_cap)
+        """
+        ratio = self.task_specific.get("margin_ratio", 0.02)
+        max_cap = self.task_specific.get("margin_max_samples", 100)
+        return min(int(self.context_length_samples * ratio), max_cap)
+
+    def get_effective_min_gap_samples(self) -> int:
+        """
+        Compute effective minimum gap based on ratio and max cap.
+
+        Uses ratio-based computation with a maximum cap to allow adaptive
+        gaps for short context lengths while maintaining reasonable bounds
+        for longer contexts.
+
+        Config parameters (in task_specific):
+            min_gap_ratio: Gap as fraction of context (default: 0.02 = 2%)
+            min_gap_max_samples: Maximum gap in samples (default: 100)
+
+        Returns:
+            Effective min gap in samples: min(context_length * ratio, max_cap)
+        """
+        ratio = self.task_specific.get("min_gap_ratio", 0.02)
+        max_cap = self.task_specific.get("min_gap_max_samples", 100)
+        return min(int(self.context_length_samples * ratio), max_cap)
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {

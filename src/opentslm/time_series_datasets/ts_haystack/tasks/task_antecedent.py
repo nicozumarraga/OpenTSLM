@@ -84,7 +84,7 @@ class AntecedentTaskGenerator(BaseTaskGenerator):
         """
         context_length = difficulty.context_length_samples
         adjacency_gap_samples = difficulty.task_specific.get("adjacency_gap_samples", 10)
-        margin_samples = difficulty.task_specific.get("margin_samples", 100)
+        margin_samples = difficulty.get_effective_margin_samples()
         background_mode = difficulty.task_specific.get("background_mode", "low_activity")
         use_transition_probs = difficulty.task_specific.get("use_transition_probs", False)
 
@@ -461,6 +461,19 @@ if __name__ == "__main__":
         help="Background purity mode",
     )
 
+    parser.add_argument(
+        "--margin-ratio",
+        type=float,
+        default=0.02,
+        help="Margin as fraction of context (default: 0.02 = 2%%)",
+    )
+    parser.add_argument(
+        "--margin-max-samples",
+        type=int,
+        default=100,
+        help="Maximum margin in samples (default: 100)",
+    )
+
     args = parser.parse_args()
 
     print("Creating AntecedentTaskGenerator...")
@@ -476,7 +489,8 @@ if __name__ == "__main__":
             background_purity=args.background_purity,
             task_specific={
                 "adjacency_gap_samples": args.adjacency_gap,
-                "margin_samples": 100,
+                "margin_ratio": args.margin_ratio,
+                "margin_max_samples": args.margin_max_samples,
                 "background_mode": args.background_mode,
                 "use_transition_probs": args.use_transition_probs,
             },
