@@ -31,6 +31,14 @@ from opentslm.time_series_datasets.ts_haystack.utils.position_utils import (
     sample_distinct_durations,
     sample_position_with_mode,
 )
+from opentslm.time_series_datasets.ts_haystack.utils.answer_evaluation import (
+    compute_time_range_iou,
+    evaluate_answer,
+    extract_final_answer,
+    normalize_boolean,
+    normalize_integer,
+    parse_time_range,
+)
 
 __all__ = [
     # Context utilities
@@ -52,4 +60,11 @@ __all__ = [
     "sample_distinct_durations",
     "check_position_conflicts",
     "get_activity_region_at_position",
+    # Answer evaluation utilities
+    "extract_final_answer",
+    "parse_time_range",
+    "compute_time_range_iou",
+    "normalize_boolean",
+    "normalize_integer",
+    "evaluate_answer",
 ]

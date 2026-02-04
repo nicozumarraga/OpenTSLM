@@ -60,6 +60,10 @@ from opentslm.time_series_datasets.ts_haystack.dataset.ts_haystack_qa_loader imp
 from opentslm.time_series_datasets.util import (
     extend_time_series_to_match_patch_size_and_aggregate,
 )
+from opentslm.time_series_datasets.ts_haystack.utils.answer_evaluation import (
+    extract_final_answer,
+    evaluate_answer,
+)
 
 
 # ==============================================================================
@@ -464,72 +468,6 @@ def train_epoch(
     return total_loss / max(num_batches, 1)
 
 
-def extract_answer_from_rationale(rationale: str, answer_type: str) -> str:
-    """
-    Extract the final answer from a chain-of-thought rationale.
-
-    Args:
-        rationale: Full rationale text
-        answer_type: Type of answer (boolean, integer, timestamp, category, time_range)
-
-    Returns:
-        Extracted answer string
-    """
-    import re
-    rationale = rationale.strip()
-
-    # Find the last occurrence of "Answer:" (case-insensitive)
-    matches = list(re.finditer(r"answer:\s*", rationale, re.IGNORECASE))
-
-    if matches:
-        start = matches[-1].end()
-        answer = rationale[start:].strip()
-
-        if answer_type == "boolean":
-            answer_lower = answer.lower()
-            if answer_lower.startswith("yes") or "yes" in answer_lower[:10]:
-                return "Yes"
-            elif answer_lower.startswith("no") or "no" in answer_lower[:10]:
-                return "No"
-
-        elif answer_type == "integer":
-            match = re.search(r"\d+", answer)
-            if match:
-                return match.group()
-
-        else:
-            answer = answer.split("\n")[0].split(".")[0].strip()
-
-        return answer
-    else:
-        words = rationale.split()
-        if words:
-            return words[-1].rstrip(".,;:!?")
-
-    return ""
-
-
-def normalize_answer(answer: str, answer_type: str) -> str:
-    """Normalize an answer for comparison."""
-    import re
-    answer = str(answer).strip().lower()
-    answer = re.sub(r"[.,;:!?]+$", "", answer)
-
-    if answer_type == "boolean":
-        if answer in ["yes", "true", "1"]:
-            return "yes"
-        elif answer in ["no", "false", "0"]:
-            return "no"
-
-    if answer_type == "integer":
-        try:
-            return str(int(float(answer)))
-        except ValueError:
-            pass
-
-    return answer
-
-
 def validate(
     model: OpenTSLMFlamingo,
     val_loader: DataLoader,
@@ -582,20 +520,25 @@ def validate(
                     try:
                         predictions = model.generate(batch, max_new_tokens=500)
 
-                        for i, (sample, pred) in enumerate(zip(batch, predictions)):
+                        for sample, pred in zip(batch, predictions):
                             task_type = sample.get("task_type", "unknown")
                             answer_type = sample.get("answer_type", "unknown")
                             ground_truth = sample.get("direct_answer", "")
                             ground_truth_rationale = sample.get("answer", "")  # Full CoT rationale
                             question = sample.get("question", "")
+                            context_length_samples = sample.get("context_length_samples", 0)
 
-                            # Extract answer from prediction
-                            pred_answer = extract_answer_from_rationale(pred, answer_type)
+                            # Extract answer from prediction using improved extraction
+                            pred_answer = extract_final_answer(pred, answer_type)
 
-                            # Check correctness
-                            gt_norm = normalize_answer(ground_truth, answer_type)
-                            pred_norm = normalize_answer(pred_answer, answer_type)
-                            is_correct = gt_norm == pred_norm
+                            # Check correctness using task-type-aware evaluation
+                            eval_result = evaluate_answer(
+                                ground_truth=ground_truth,
+                                prediction=pred_answer,
+                                answer_type=answer_type,
+                                iou_threshold=0.5,
+                            )
+                            is_correct = eval_result["correct"]
 
                             # Track per-task accuracy
                             if task_type not in task_correct:
@@ -615,6 +558,8 @@ def validate(
                                 "predicted_answer": pred_answer,
                                 "prediction_preview": pred,
                                 "correct": is_correct,
+                                "context_length_samples": context_length_samples,
+                                "iou": eval_result.get("iou"),
                             })
 
                             samples_generated += 1

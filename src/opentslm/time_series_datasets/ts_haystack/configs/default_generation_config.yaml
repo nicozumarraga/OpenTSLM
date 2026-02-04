@@ -36,9 +36,9 @@ samples:
   # test: 150
 
   # DEVELOPMENT SETTINGS
-  train: 100
-  val: 15
-  test: 15
+  train: 1000
+  val: 150
+  test: 150
 
 # ------------------------------------------------------------------------------
 # Style Transfer Settings (applied during needle insertion)
