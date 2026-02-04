@@ -163,7 +163,7 @@ def load_model(config: TrainingConfig, device: str) -> OpenTSLMFlamingo:
     # Formula: context_seconds * sampling_rate / patch_size
     max_context_seconds = max(config.context_lengths_seconds)
     sampling_rate = 100  # Capture24 is 100Hz
-    trained_patches = (max_context_seconds * sampling_rate) // PATCH_SIZE
+    trained_patches = int((max_context_seconds * sampling_rate) // PATCH_SIZE)
     max_patches = trained_patches + 1000  # Buffer for slightly longer sequences
 
     print(f"  Context: {max_context_seconds}s -> {trained_patches} patches (max: {max_patches})")
